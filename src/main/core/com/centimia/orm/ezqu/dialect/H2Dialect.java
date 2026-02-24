@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -20,15 +18,15 @@
  */
 package com.centimia.orm.ezqu.dialect;
 
+import java.io.Serializable;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.temporal.TemporalAccessor;
+import java.util.Arrays;
 import java.util.Date;
 
 import com.centimia.orm.ezqu.Db;
 import com.centimia.orm.ezqu.EzquError;
 import com.centimia.orm.ezqu.SQLDialect;
-import com.centimia.orm.ezqu.Types;
 import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
@@ -40,11 +38,6 @@ public class H2Dialect implements SQLDialect {
 
 	@Override
 	public String getDataType(Class<?> fieldClass) {
-		final String VARCHAR = "VARCHAR";
-		final String TIMESTAMP = "TIMESTAMP";
-		final String DATE = "DATE";
-		final String TIME = "TIME";
-		
 		if (fieldClass == Integer.class) {
 			return "INT";
 		}
@@ -55,7 +48,10 @@ public class H2Dialect implements SQLDialect {
 			return "DOUBLE";
 		}
 		else if (fieldClass == java.math.BigDecimal.class) {
-			return "DECIMAL";
+			return "NUMERIC(38, 15)";
+		}
+		else if (fieldClass == java.math.BigInteger.class) {
+			return "NUMERIC(65,0)";
 		}
 		else if (fieldClass == java.util.Date.class) {
 			return TIMESTAMP;
@@ -97,7 +93,7 @@ public class H2Dialect implements SQLDialect {
 			return "REAL";
 		}
 		else if (fieldClass == java.sql.Blob.class) {
-			return "BLOB";
+			return BLOB;
 		}
 		else if (fieldClass == java.sql.Clob.class) {
 			return "CLOB";
@@ -119,6 +115,9 @@ public class H2Dialect implements SQLDialect {
 		else if (fieldClass.isEnum()) {
 			return VARCHAR;
 		}
+		else if (null != fieldClass.getInterfaces() && Arrays.stream(fieldClass.getInterfaces()).anyMatch(i -> i == Serializable.class)) {
+			return BLOB;
+		}
 		return VARCHAR;
 	}
 	
@@ -139,50 +138,6 @@ public class H2Dialect implements SQLDialect {
 		return db.executeQuery(query, ResultSet::next);
 	}
 	
-	/**
-	 * In H2 mapping is very straight forward between DB types and java types and thus a simple return is used
-	 * 
-	 * @see com.centimia.orm.ezqu.SQLDialect#getValueByType(com.centimia.orm.ezqu.Types, java.sql.ResultSet, java.lang.String)
-	 */
-	@Override
-	public Object getValueByType(Types type, ResultSet rs, String columnName) throws SQLException {
-		switch (type) {
-			case ENUM: return rs.getString(columnName);
-			case ENUM_INT: return rs.getInt(columnName);
-			case BOOLEAN: return (rs.getObject(columnName) != null) && rs.getBoolean(columnName);
-			case BIGDECIMAL: return rs.getBigDecimal(columnName);
-			case LOCALDATE: return null != rs.getDate(columnName) ? rs.getDate(columnName).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null; // TODO this should be fixed to support zone
-    		case LOCALTIME: return null != rs.getTime(columnName) ? null != rs.getTime(columnName).toLocalTime() : null;
-    		case STRING:  return rs.getString(columnName);
-    		case BYTE: return rs.getByte(columnName);
-    		default: return rs.getObject(columnName);
-		}
-	}
-	
-	/**
-	 * In H2 mapping is very straight forward between DB types and java types and thus a simple return is used
-	 * 
-	 * @see com.centimia.orm.ezqu.SQLDialect#getValueByType(com.centimia.orm.ezqu.Types, java.sql.ResultSet, int)
-	 */
-	@Override
-	public Object getValueByType(Types type, ResultSet rs, int columnNumber) throws SQLException {
-		switch (type) {
-			case ENUM: return rs.getString(columnNumber);
-			case ENUM_INT: return rs.getInt(columnNumber);
-			case BOOLEAN: return (rs.getObject(columnNumber) != null) && rs.getBoolean(columnNumber);
-			case BIGDECIMAL: return rs.getBigDecimal(columnNumber);
-			case LOCALDATE: return null != rs.getDate(columnNumber) ? rs.getDate(columnNumber).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null; // TODO this should be fixed to support zone
-    		case LOCALTIME: return null != rs.getTime(columnNumber) ? null != rs.getTime(columnNumber).toLocalTime() : null;
-    		case STRING:  return rs.getString(columnNumber);
-    		case BYTE: return rs.getByte(columnNumber);
-    		default: return rs.getObject(columnNumber);
-		}
-	}
-	
 	@Override
 	public String getIdentityType() {
 		return "IDENTITY NOT NULL";
@@ -190,10 +145,10 @@ public class H2Dialect implements SQLDialect {
 	
 	@Override
 	public String getFunction(Functions functionName) {
-		switch(functionName){
-			case IFNULL: return "IFNULL";
-		}
-		return null;
+		return switch(functionName) {
+			case IFNULL -> "IFNULL";
+			default -> "";
+		};
 	}
 
 	@Override
@@ -230,5 +185,12 @@ public class H2Dialect implements SQLDialect {
 	@Override
 	public String getSequnceQuery(String seqName) {
 		return "SELECT " + seqName + ".nextval from dual";
+	}
+	
+	@Override
+	public String offset(int limit, int offset) {
+		if (limit == -1)
+			return "OFFSET " + offset;
+		return "LIMIT " + limit + " OFFSET " + offset;
 	}
 }

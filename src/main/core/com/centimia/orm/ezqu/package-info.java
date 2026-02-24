@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024 Shai Bentin & Centimia Inc..
+ * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
@@ -9,8 +9,5 @@
  * SECRETS OF Shai Bentin USE, DISCLOSURE, OR
  * REPRODUCTION IS PROHIBITED WITHOUT THE PRIOR EXPRESS
  * WRITTEN PERMISSION OF Shai Bentin & CENTIMIA, INC.
- */
-/**
- * 
  */
 package com.centimia.orm.ezqu;

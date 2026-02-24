@@ -1,19 +1,18 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -26,9 +25,10 @@ import com.centimia.orm.ezqu.util.Utils;
 /**
  * This class represents a query.
  *
- * @param <T> the return type
+ * @apiNote &lt;T&gt; the return type
+ * @author shai
  */
-public class Query<T> implements QueryInterface<T> {
+public class Query<T> {
 	private static final String ILLEGAL_STATE_0 = "IllegalState 0 Entity based on %s must be part of a join query!!";
 	
 	private Db db;
@@ -39,12 +39,23 @@ public class Query<T> implements QueryInterface<T> {
     private final IdentityHashMap<Object, SelectColumn<T>> aliasMap = new IdentityHashMap<>();
     private ArrayList<OrderExpression<T>> orderByList = new ArrayList<>();
     private LimitToken limit = null;
+    private OffsetToken offset = null;
     private Object[] groupByExpressions;
 
     Query(Db db) {
         this.db = db;
     }
 
+    /**
+     * Creates a new query with the given alias as the from clause. 
+     * The alias must be an unique instance of a class
+     * and must not be an anonymous class.
+     * 
+     * @param &lt;T&gt;
+     * @param db
+     * @param alias
+     * @return Query&lt;T&gt;
+     */
     @SuppressWarnings("unchecked")
     static <T> Query<T> from(Db db, T alias) {
         Query<T> query = new Query<>(db);
@@ -54,7 +65,11 @@ public class Query<T> implements QueryInterface<T> {
         return query;
     }
 
-    @Override
+    /**
+	 * Do an SQL "select count(*)" on the table
+	 *
+	 * @return long, the count
+	 */
     public long selectCount() {
         SQLStatement selectList = new SQLStatement(db);
         selectList.setSQL("COUNT(*)");
@@ -64,177 +79,434 @@ public class Query<T> implements QueryInterface<T> {
         });
     }
 
-    @Override
+    /**
+	 * Do an SQL "select [ColumnA], count(*)" on the table.
+	 * 
+	 * For more complicated counts you can do:<br>
+	 * <code><pre>
+	 * 	select.from([yourDescriptor]).where()....select(new YourClass() {
+	 * 		{
+	 * 			fiedlName = descriptor.value (matching field);
+	 * 			fiedlName1 = descriptor.value (matching field1);
+	 * 			fiedlName2 = Function.count(); // or Function.count(descriptor.anyField, Db)
+	 * 		}
+	 * });
+	 * </pre></code>
+	 *
+	 * @param &lt;Z&gt; the column you want to select
+	 * @return List&lt;ColumnCount&lt;Z&gt;&gt; the results
+	 */
+    public <Z> List<ColumnCount<Z>> selectCount(Z x) {
+    	return selectCount(x, 0);
+    }
+    
+    /**
+	 * @see #selectCount(Object) returns with counts in descending order
+	 * @param &lt;Z&gt; the column you want to select
+	 * @return List&lt;ColumnCount&lt;Z&gt;&gt; the results
+	 */
+	public <Z> List<ColumnCount<Z>> selectCountAsc(Z x) {
+    	return selectCount(x, 1);
+    }
+    
+	/**
+	 * @see #selectCount(Object) returns with counts in descending order
+	 * @param &lt;Z&gt; the column you want to select
+	 * @return List&lt;ColumnCount&lt;Z&gt;&gt; the results
+	 */
+    public <Z> List<ColumnCount<Z>> selectCountDesc(Z x) {
+    	return selectCount(x, 2);
+    }
+    
+    /**
+	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
+	 * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> union(Query<U> unionQuery) {
 		return union(unionQuery, false);
     }
 
-	@Override
+	/**
+	 * same as {@link #union(Query)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> unionDistinct(Query<U> unionQuery) {
 		return union(unionQuery, true);
     }
 
-	@Override
+	/**
+     * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
+     * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @param x - the type to return
+	 * @return List&lt;X&gt;
+	 */
 	public <U, X> List<X> union(Query<U> unionQuery, X x) {
 		return union(unionQuery, x, false);
     }
 
-	@Override
+	/**
+	 * same as {@link #union(Query, Object)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U, X> List<X> unionDistinct(Query<U> unionQuery, X x) {
 		return union(unionQuery, x, true);
     }
 
-	@Override
+	/**
+	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
+	 * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> union(QueryWhere<U> unionQuery) {
 		return union(unionQuery.query, false);
 	}
 
-	@Override
+	/**
+	 * same as {@link #union(QueryWhere)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> unionDistinct(QueryWhere<U> unionQuery) {
 		return union(unionQuery.query, true);
 	}
 
+	
+	/**
+     * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
+     * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @param x - the type to return
+	 * @return List&lt;X&gt;
+	 */
 	@SuppressWarnings("unchecked")
-	@Override
 	public <U, X, Z> List<X> union(QueryWhere<U> unionQuery, Z x) {
 		return union(unionQuery.query, (X)x, false);
     }
 
-	@Override
+	/**
+	 * same as {@link #union(QueryWhere, Object)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U, X> List<X> unionDistinct(QueryWhere<U> unionQuery, X x) {
 		return union(unionQuery.query, x, true);
     }
 
-	@Override
+	/**
+	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
+	 * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> union(QueryJoinWhere<U> unionQuery) {
 		return union(unionQuery.query, false);
 	}
 
-	@Override
+	/**
+	 * same as {@link #union(QueryJoinWhere)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U> List<T> unionDistinct(QueryJoinWhere<U> unionQuery) {
 		return union(unionQuery.query, true);
 	}
 
-	@Override
+	/**
+     * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
+     * this query is runs a union query of the two queries.<br>
+	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
+	 *
+	 * @param unionQuery
+	 * @param x - the type to return
+	 * @return List&lt;X&gt;
+	 */
 	public <U, X> List<X> union(QueryJoinWhere<U> unionQuery, X x) {
 		return union(unionQuery.query, x, false);
     }
 
-	@Override
+	/**
+	 * same as {@link #union(QueryJoinWhere, Object)} but returns distinct results of both queries.
+	 *
+	 * @param unionQuery
+	 * @return List&lt;T&gt;
+	 */
 	public <U, X> List<X> unionDistinct(QueryJoinWhere<U> unionQuery, X x) {
 		return union(unionQuery.query, x, true);
     }
 
-	@Override
-	public <K, V> Map<K, V> selectAsMap(K key, V value){
+	/**
+	 * Returns a map of all the query's results where key is one field in the select and value is another.<br>
+	 * It is also available in join queries. You can have a key from any table within the join and a value from any table as well.<br>
+	 * <b>Note:</b> If keys are not unique they will override.<br>
+	 * example:
+	 * <pre>
+	 * Db db = [new session];
+	 * Table t = [tableDescriptor]
+	 * Map<Long, String> results = db.from(t).where(t.[getSomeField()]).is)[someValue]....selectAsMap(t.getA(), t.getB());
+	 * </pre>
+	 *
+	 * @param key
+	 * @param value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <K, V> Map<K, V> selectAsMap(K key, V value) {
 		return selectSimpleAsMap(key, value, false);
 	}
 
-	@Override
-	public <K, V> Map<K, V> selectDistinctAsMap(K key, V value){
+	/**
+	 * same as {@link #selectAsMap(Object, Object)} but returns only distinct results.
+	 *
+	 * @see #selectAsMap(Object, Object)
+	 * @param key
+	 * @param value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <K, V> Map<K, V> selectDistinctAsMap(K key, V value) {
 		return selectSimpleAsMap(key, value, true);
 	}
 
-	@Override
+	/**
+	 * Perform the query select
+	 * @return List&lt;T&gt; results
+	 */
     public List<T> select() {
         return select(false);
     }
 
-    @Override
+    /**
+	 * Returns the first result of the select performed.
+	 * @return T
+	 */
     public T selectFirst() {
     	List<T> list = select(false);
         return list.isEmpty() ? list.get(0) : null;
     }
 
-    @Override
+    /**
+	 * Select only distinct results in the table
+	 *
+	 * @return List&lt;T&gt;
+	 */
     public List<T> selectDistinct() {
         return select(true);
     }
 
-    /* (non-Javadoc)
-	 * Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
-	 * anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
+    /**
+	 * Returns the first result of a select for type Z.
+	 * Type Z can be any defined type with mappings from the result.
+	 *
+	 * @apiNote &lt;Z&gt; Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
+	 * 			anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
+	 * @param x
+	 * @return Z
 	 */
     @SuppressWarnings("unchecked")
-    @Override
     public <X, Z> X selectFirst(Z x) {
         List<X> list = (List<X>) select(x);
         return list.isEmpty() ? null : list.get(0);
     }
 
-    @Override
+    /**
+	 * Returns a String representing the select assembled from the object query.
+	 *
+	 * @return String
+	 */
     public String getSQL() {
-    	return this.getSQL(false);
+    	return this.getSQL(false, false);
     }
 
-    @Override
+    /**
+	 * returns the query of an sql
+	 * 
+	 * @return String
+	 */
 	public String getDistinctSQL() {
-    	return this.getSQL(true);
+    	return this.getSQL(true, false);
     }
 
-	@Override
+	/**
+	 * returns the query of an sql build according to the given object
+	 * @param z
+	 * @return String
+	 */
 	public <Z> String getSQL(Z z) {
-    	return getSQL(z, false);
+    	return getSQL(z, false, false);
     }
 
-	@Override
+	/**
+	 * returns the query of a distinct select based on the given object
+	 * @param z
+	 * @return String
+	 */
 	public <Z> String getDistinctSQL(Z z) {
-    	return getSQL(z, false);
+    	return getSQL(z, false, false);
     }
 
-	@Override
-	public <U> List<U> selectRightHandJoin(U tableClass){
+	/**
+	 * Returns a String representing the select assembled from the object query + parameters for logging.
+	 *
+	 * @return String
+	 */
+    public String logSQL() {
+    	return this.getSQL(false, true);
+    }
+
+    /**
+	 * returns the query of an sql + parameters for logging
+	 * 
+	 * @return String
+	 */
+	public String logDistinctSQL() {
+    	return this.getSQL(true, true);
+    }
+	
+	/**
+	 * returns the query of an sql build according to the given object with parameters for logging
+	 * 
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logSQL(Z z) {
+    	return getSQL(z, false, true);
+    }
+	
+	/**
+	 * returns the query of a distinct select based on the given object
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logDistinctSQL(Z z) {
+    	return getSQL(z, false, true);
+    }
+	
+	/**
+     * A convenience method to get the object representing the right hand side of the join relationship only (without the need to specify the mapping between fields)
+     * Returns a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     * @return List&lt;U&gt;
+     */
+	public <U> List<U> selectRightHandJoin(U tableClass) {
     	return selectRightHandJoin(tableClass, false);
     }
 
-	@Override
-    public <U, Z> List<Z> selectRightHandJoin(U tableClass, Z x){
+	/**
+     * A convenience method get a field result from an object representing the right hand side of the join relationship only. This is for a single field only
+     * Returns a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     * @return List&lt;Z&gt;
+     */
+    public <U, Z> List<Z> selectRightHandJoin(U tableClass, Z x) {
     	return selectRightHandJoin(tableClass, false, x);
     }
 
-    @Override
-	public <U> List<U> selectDistinctRightHandJoin(U tableClass){
+    /**
+     * A convenience method to get the object representing the right hand side of the join relationship only (without the need to specify the mapping between fields)
+     * Returns a list of distinct results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     * @return List&lt;U&gt;
+     */
+	public <U> List<U> selectDistinctRightHandJoin(U tableClass) {
     	return selectRightHandJoin(tableClass, true);
     }
 
-	@Override
-	public <U, Z> List<Z> selectDistinctRightHandJoin(U tableClass, Z x){
+	/**
+     * A convenience method to a field of the object representing the right hand side of the join relationship only. Based on a single field only
+     * Returns a list of distinct results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     * @return List&lt;U&gt;
+     */
+	public <U, Z> List<Z> selectDistinctRightHandJoin(U tableClass, Z x) {
     	return selectRightHandJoin(tableClass, true, x);
     }
 
-	@Override
-	public <U> U selectFirstRightHandJoin(U tableClass){
+	/**
+     * A convenience method to get the object representing the right hand side of the join relationship only (without the need to specify the mapping between fields)
+     * Returns the first result of a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     */
+	public <U> U selectFirstRightHandJoin(U tableClass) {
     	List<U> list = selectRightHandJoin(tableClass, false);
     	return list.isEmpty() ? null : list.get(0);
     }
 
-	@Override
-    public <U, Z> Z selectFirstRightHandJoin(U tableClass, Z x){
+	/**
+     * A convenience method to get a field result from an object representing the right hand side of the join relationship only. This is for a single field only
+     * Returns the first result of a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
+     *
+     * @param tableClass - the object descriptor of the type needed on return
+     * @throws EzquError - when not in join query
+     */
+    public <U, Z> Z selectFirstRightHandJoin(U tableClass, Z x) {
     	List<Z> list = selectRightHandJoin(tableClass, false, x);
     	return list.isEmpty() ? null : list.get(0);
     }
 
-    /* (non-Javadoc)
-	 * Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
-	 * anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
- 	 */
+    /**
+	 * Returns distinct results of type X using a query on object Z
+	 *
+	 * @apiNote - Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
+	 * 	 		  anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
+	 * @param &lt;X&gt; - The type of object returned after the specific object is built from results.
+	 * @param &lt;Z&gt; - The type of the Object used for describing the query
+	 * @param x - A descriptor instance of type Z
+	 * @return List&lt;X&gt;
+	 */
     @SuppressWarnings("unchecked")
-    @Override
 	public <X, Z> List<X> selectDistinct(Z x) {
         return select((X)x, true);
     }
 
-    /* (non-Javadoc)
-	 * Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
-	 * anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
+    /**
+	 * Returns the result of a select for object of type Z from Table T.
+	 *
+	 * @param &lt;Z&gt; Reason for using X and Z generic parameters as opposed to just Z is because externally when using a special Object mapping the instance created is actually a new
+	 * 	 				anonymous class which is identical to Z but is actually not Z by signature. So using the Casting to X we allow generic strong typing for the user.
+	 * @param x
+	 * @return List&lt;Z&gt; results
 	 */
     @SuppressWarnings("unchecked")
-    @Override
 	public <X, Z> List<X> select(Z x) {
         return select((X)x, false);
     }
 
-    @Override
+    /**
+	 * Performs a delete query.
+	 * <b>Note</b> Since delete executes without objects the multi reEntrent cache is cleared
+	 * and objects taken from the db before will no longer be the same instance if fetched again</b>
+	 *
+	 * @return int - number of rows deleted
+	 */
     public int delete() {
     	try {
 			TableDefinition<T> def = from.getAliasDefinition();
@@ -278,7 +550,13 @@ public class Query<T> implements QueryInterface<T> {
 		}
     }
 
-    @Override
+    /**
+	 * Perform the update requested by the specific where clause
+	 * <b>Note</b> Since update executes without objects the multi reEntrent cache is cleared
+	 * and objects taken from the db before will no longer be the same instance if fetched again</b>
+	 *
+	 * @return int - number of lines updated.
+	 */
     public int update() {
         try {
 			SQLStatement stat = new SQLStatement(db);
@@ -303,30 +581,57 @@ public class Query<T> implements QueryInterface<T> {
 	 *
 	 * @return Query&lt;T&gt;
 	 */
-    @Override
     public Query<T> wrap() {
     	this.addConditionToken((stat, query) -> stat.appendSQL("("));
     	return this;
     }
 
-    @Override
-	public QueryWhere<T> where(final StringFilter whereCondition){
+    /**
+	 * Allows a simple string where clause
+	 * 
+	 * @param &lt;A&gt;
+	 * @param whereCondition
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> where(final StringFilter whereCondition) {
     	Token conditionCode = (stat, query) -> stat.appendSQL(whereCondition.getConditionString(query.from)); 
 		conditions.add(conditionCode);
 		return new QueryWhere<>(this);
     }
 
-    @Override
+	/**
+	 * wraps the entity object and changes the condition to support the primary key.
+	 * Useful in cases when the object holds an entity relation but you do not want to create the relation in the
+	 * fluent query.
+	 *
+	 * @param &lt;A&gt;
+	 * @param mask
+	 * @return QueryCondition&lt;T, A&gt;
+	 */
 	public <K, A> QueryCondition<T, A> where(final GenericMask<K, A> mask) {
         return new QueryCondition<>(this, mask, mask.mask());
     }
 
-	@Override
+	/**
+	 * Start a where clause on the SQL query.
+	 *
+	 * @param &lt;A&gt;
+	 * @param x
+	 * @return QueryCondition<T, A>
+	 */
     public <A> QueryCondition<T, A> where(A x) {
         return new QueryCondition<>(this, x);
     }
 	
-	@Override
+    /**
+	 * Used on update queries to set the parameters of the update according to the
+	 * given object.
+	 *
+	 * @param x - field from descriptor object
+	 * @param v - value of the same type.
+	 *
+	 * @return QuerySet&lt;T, A&gt;
+	 */
     public <A> QuerySet<T, A> set(A x, A v) {
     	if (Collection.class.isAssignableFrom(x.getClass())) {
     		// this is a relation updating is not supported like this
@@ -335,7 +640,13 @@ public class Query<T> implements QueryInterface<T> {
     	return new QuerySet<>(this, x, v);
     }
 
-	@Override
+    /**
+	 * Returns a primary key condition. Usually used internally, when the primary key is a definite identifier which is unknown....
+	 * Does not support complex primary keys. Use this query only when the primary key to compare with is definite, any other condition
+	 * is not supported
+	 *
+	 * @return QueryCondition&lt;T, Object&gt;
+	 */
     public QueryCondition<T, Object> primaryKey() {
     	TableDefinition<?> def = from.getAliasDefinition();
 
@@ -349,15 +660,46 @@ public class Query<T> implements QueryInterface<T> {
    		return new QueryCondition<>(this, primaryKeys.get(0).getValue(from.getAlias()));
 	}
 
-	@Override
+    /**
+	 * Adds a where true condition to the query
+	 * 
+	 * @param condition
+	 * @return QueryWhere&lt;T&gt;
+	 */
     public QueryWhere<T> whereTrue(Boolean condition) {
         Token token = new Function("", condition);
         addConditionToken(token);
         return new QueryWhere<>(this);
     }
 
-	@Override
-	public QueryInterface<T> orderBy(Object ... expressions) {
+    /**
+	 * a "where exists" clause. Adds "WHERE EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> whereExists(QueryWhere<?> subQuery) {
+		this.addConditionToken(new ExistsToken(subQuery));
+		return new QueryWhere<>(this);
+	}
+	
+	/**
+	 * a "where not exists" clause. Adds "WHERE NOT EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> whereNotExists(QueryWhere<?> subQuery) {
+		this.addConditionToken((s, q) -> s.appendSQL("NOT"));
+		this.addConditionToken(new ExistsToken(subQuery));
+		return new QueryWhere<>(this);
+	}
+	
+    /**
+	 * Order by a number of columns.
+	 *
+	 * @param expressions the columns
+	 * @return the query
+	 */
+	public Query<T> orderBy(Object ... expressions) {
 		for (Object expr : expressions) {
 			OrderExpression<T> e = new OrderExpression<>(this, expr, false, false, false);
 			this.addOrderBy(e);
@@ -365,124 +707,74 @@ public class Query<T> implements QueryInterface<T> {
 		return this;
 	}
 
-	@Override
-	public QueryInterface<T> orderByNullsFirst(Object ... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], false, true, false);
-				this.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], false, true, false);
-				this.addOrderBy(e);
-				return this;
-			}
-		}
+	/**
+	 * Order by one or more columns in descending order
+	 * 
+	 * @param expr
+	 * @return QueryWhere&lt;T&gt; - the query
+	 */
+	public Query<T> orderByNullsFirst(Object ... expr) {
+		return orderBy(false, true, false, expr);
 	}
 
-	@Override
-	public QueryInterface<T> orderByNullsLast(Object ... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], false, false, true);
-				this.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], false, false, true);
-				this.addOrderBy(e);
-				return this;
-			}
-		}
+	/**
+	 * Order by one or more columns in ascending order
+	 * @param expr
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public Query<T> orderByNullsLast(Object ... expr) {
+		return orderBy(false, false, true, expr);
 	}
 
-	@Override
-	public QueryInterface<T> orderByDesc(Object ... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, false, false);
-				this.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, true, false);
-				this.addOrderBy(e);
-				return this;
-			}
-		}
+	/**
+	 * Descending order by a single given column
+	 *
+	 * @param expr
+	 * @return Query
+	 */
+	public Query<T> orderByDesc(Object ... expr) {
+		return orderBy(true, false, false, expr);
 	}
 
-	@Override
-	public QueryInterface<T> orderByDescNullsFirst(Object ... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, true, false);
-				this.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, true, false);
-				this.addOrderBy(e);
-				return this;
-			}
-		}
+	/**
+	 * Order by in descending order nulls will be first
+	 * 
+	 * @param expr
+	 * @return Query&lt;T&gt;
+	 */
+	public Query<T> orderByDescNullsFirst(Object ... expr) {
+		return orderBy(true, true, false, expr);
 	}
 
-	@Override
-	public QueryInterface<T> orderByDescNullsLast(Object ... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, false, true);
-				this.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], true, false, true);
-				this.addOrderBy(e);
-				return this;
-			}
-		}
+	/**
+	 * Order by one or more columns in ascending order
+	 * @param expr
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public Query<T> orderByDescNullsLast(Object ... expr) {
+		return orderBy(true, false, true, expr);
 	}
 
-	@Override
+	/**
+	 * Create a having clause based on the column given.
+	 * <b>You can only use a single having in a select clause</b>
+	 *
+	 * @param x
+	 * @return QueryCondition&lt;T, A&gt;
+	 */
 	public <A> QueryCondition<T, A> having(final A x) {
 		HavingToken conditionCode = new HavingToken();
 		conditions.add(conditionCode);
 		return new QueryCondition<>(this, x);
 	}
 
-	@Override
+	/**
+	 * having clause with a supported aggregate function
+	 * 
+	 * @param function
+	 * @param x
+	 * @return QueryCondition&lt;T, Long&gt;
+	 */
 	public <A> QueryCondition<T, Long> having(HavingFunctions function, final A x) {
 		HavingToken conditionCode = new HavingToken();
 		conditions.add(conditionCode);
@@ -490,30 +782,80 @@ public class Query<T> implements QueryInterface<T> {
 		return new QueryCondition<>(this, Function.ignore());
 	}
 
-	@Override
+	/**
+	 * Group By ordered objects
+	 * 
+	 * @param groupBy
+	 * @return Query&lt;T&gt;
+	 */
     public Query<T> groupBy(Object ... groupBy) {
         this.groupByExpressions = groupBy;
         return this;
     }
 
-    @Override
+	/**
+	 * adds a limit to the query<br>
+	 * <b>Note:</b> You can not use 'limit' and 'offset' methods at the same time use {@link#offet(int, int)} instead!
+	 * 
+	 * @param limitNum
+	 * @return Query&lt;T&gt;
+	 */
 	public Query<T> limit(int limitNum) {
 		this.limit = new LimitToken(limitNum);
 		return this;
 	}
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    @Override
-    public <U> QueryJoin innerJoin(U alias) {
+	/**
+	 * adds an offset with <b>no limit</b> to the query
+	 * 
+	 * @param limitNum
+	 * @param offsetNum
+	 * @return Query&lt;T&gt;
+	 */
+	public Query<T> offset(int offsetNum) {
+		this.offset = new OffsetToken(-1, offsetNum);
+		return this;
+	}
+	
+	/**
+	 * adds an offset with limit to the query<br>
+	 * If you want a limit with no offset you can issue {@link #limit(int)} instead, or use 0 as offsetNum
+	 * 
+	 * @param limitNum
+	 * @param offsetNum
+	 * @return Query&lt;T&gt;
+	 */
+	public Query<T> offset(int limitNum, int offsetNum) {
+		this.offset = new OffsetToken(limitNum, offsetNum);
+		return this;
+	}
+	
+    /**
+	 * inner Join another table. (returns only rows that match)
+	 * The alias must be an unique instance of a class representing a table
+     * and must not be an anonymous class.
+     * 
+	 * @param alias an alias for the table to join
+	 * @return the joined query
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+    public <U> QueryJoin<T> innerJoin(U alias) {
         TableDefinition<T> def = (TableDefinition<T>) db.define(alias.getClass());
         SelectTable<T> join = new SelectTable(this, alias, JOIN_TYPE.INNER_JOIN);
         def.initSelectObject(join, alias, aliasMap);
         joins.add(join);
         return new QueryJoin(this, join);
     }
-
+    
+	/**
+	 * Left Outer Join another table. (Return all rows from left table, and matching from rightHandSide)
+	 * The alias must be an unique instance of a class representing a table
+     * and must not be an anonymous class.
+     * 
+	 * @param alias an alias for the table to join
+	 * @return the joined query
+	 */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    @Override
     public <U> QueryJoin leftOuterJoin(U alias) {
         TableDefinition<T> def = (TableDefinition<T>) db.define(alias.getClass());
         SelectTable<T> join = new SelectTable(this, alias, JOIN_TYPE.LEFT_OUTER_JOIN);
@@ -648,9 +990,12 @@ public class Query<T> implements QueryInterface<T> {
                 stat.appendSQL(" ");
             }
         }
-        if (null != limit) {
+        if (null != limit && null == offset) {
         	limit.appendSQL(stat, this);
         }
+        else if (null != offset && null == limit) {
+			offset.appendSQL(stat, this);
+		}
         return stat;
     }
 
@@ -670,28 +1015,38 @@ public class Query<T> implements QueryInterface<T> {
         orderByList.add(expr);
     }
 
-    SelectTable<T> getSelectTable(){
+    SelectTable<T> getSelectTable() {
     	return from;
     }
 
-    List<SelectTable<?>> getJoins(){
+    List<SelectTable<?>> getJoins() {
     	return joins;
     }
 
-    private String getSQL(boolean distinct) {
+    
+    @SuppressWarnings("rawtypes")
+	IdentityHashMap aliasMap() {
+		return aliasMap;
+	}
+    
+    private String getSQL(boolean distinct, boolean forLog) {
     	TableDefinition<T> def = from.getAliasDefinition();
         SQLStatement selectList = def.getSelectList(db, from.getAs());
-        return prepare(selectList, distinct).logSQL().trim();
+        if (forLog)
+			return prepare(selectList, distinct).logSQL().trim();
+        return prepare(selectList, distinct).getSQL().trim();
     }
 
     @SuppressWarnings("unchecked")
-	private <X> String getSQL(X x, boolean distinct) {
+	private <X> String getSQL(X x, boolean distinct, boolean forLog) {
     	Class<X> clazz = (Class<X>) x.getClass();
     	if (clazz.isAnonymousClass())
     		clazz = (Class<X>) clazz.getSuperclass();
     	TableDefinition<X> def = EzquSessionFactory.define(clazz, db, false);
         SQLStatement selectList = def.getSelectList(this, x);
-        return prepare(selectList, distinct).logSQL().trim();
+        if (forLog)
+        	return prepare(selectList, distinct).logSQL().trim();
+        return prepare(selectList, distinct).getSQL().trim();
     }
 
     private List<T> select(boolean distinct) {
@@ -719,10 +1074,10 @@ public class Query<T> implements QueryInterface<T> {
     	SQLStatement selectList = def.getSelectList(db, from.getAs());
 
     	TableDefinition<U> unionDef = unionQuery.from.getAliasDefinition();
-    	SQLStatement unuionSelectList = unionDef.getSelectList(db, unionQuery.from.getAs());
+    	SQLStatement unionSelectList = unionDef.getSelectList(db, unionQuery.from.getAs());
 
     	selectList = prepare(selectList, distinct);
-    	selectList.executeUnion(unionQuery.prepare(unuionSelectList, distinct), rs -> {
+    	selectList.executeUnion(unionQuery.prepare(unionSelectList, distinct), rs -> {
     		while (rs.next()) {
                 T item = def.readRow(rs, db);
                 db.addSession(item);
@@ -894,6 +1249,59 @@ public class Query<T> implements QueryInterface<T> {
         return result;
     }
 
+    private Query<T> orderBy(boolean desc, boolean nullsFirst, boolean nullsLast, Object ... expr) {
+    	int length = expr.length;
+		switch (length) {
+			case 0: return this;
+			case 1: {
+				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], desc, nullsFirst, nullsLast);
+				this.addOrderBy(e);
+				return this;
+			}
+			default: {
+				for (int i = 0; i < length - 1; i++) {
+					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
+					this.addOrderBy(e);
+				}
+				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], desc, nullsFirst, nullsLast);
+				this.addOrderBy(e);
+				return this;
+			}
+		}
+    }
+    
+    private <Z> List<ColumnCount<Z>> selectCount(Z x, int sort) {
+    	Class<?> clazz = x.getClass();
+    	if (Utils.isSimpleType(clazz) || clazz.isEnum()) {
+    		SQLStatement selectList = new SQLStatement(db);
+    		appendSQL(selectList, x, false, null);
+			selectList.appendSQL(", COUNT(*)");
+			groupBy(x);
+						
+			List<ColumnCount<Z>> result = new ArrayList<>();
+			prepare(selectList, false).executeQuery(rs -> {
+				while (rs.next()) {
+					@SuppressWarnings("unchecked")
+					ColumnCount<Z> row = new ColumnCount<>((Z)rs.getObject(1), rs.getLong(2));
+					result.add(row);
+				}
+				return null;
+	        });
+			
+			switch (sort) {
+				case 1: result.sort(null); break;
+				case 2: result.sort(null); Collections.reverse(result); break;
+				default: break;
+			}
+			return result;
+		}
+		else {
+			throw new EzquError("UnsupportedOperation - selectCount only supports simple types and enums. "
+					+ "To select complex types use groupBy and select and do\n"
+					+ "[your fluent query].select(new YourClass() {{static block with function count}})");
+    	}
+    }
+    
     @SuppressWarnings("unchecked")
     private <X> List<X> getSimple(X x, boolean distinct) {
         SQLStatement selectList = new SQLStatement(db);

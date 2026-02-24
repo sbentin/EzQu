@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -25,10 +23,9 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import javax.sql.CommonDataSource;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
 
 /**
@@ -45,7 +42,7 @@ public final class EzquSessionFactory {
 	enum ACID_CONFIG {INTERNAL, EXTERNAL}
 
 	// setup a transaction manager if one exists
-	TransactionManager tm = null;
+	TransactionStrategy transactionStrategy;
 
 	// configuration fields
 	/** Holds the underlying database connection factory/Datasource */
@@ -121,30 +118,6 @@ public final class EzquSessionFactory {
 	}
 
     /**
-     * Returns a EzQu session backed up by an underlying DB connection.<br>
-     * When making multiple calls to get session on the same thread this methods attempts to return the same Db session provided
-     * it is still active.
-     *
-     * @return Db
-     */
-    public Db getSession()  {
-    	try {
-	    	/* since it is not in the dataSource.getConnection contract
-	    	 * to make sure we always get the open connection on the thread we take care of this here
-	    	 */
-    		Db db = currentSession();
-    		if (null == db) {
-    			db = createConnection();
-    			currentSession.set(db);
-    		}
-    		return db;
-		}
-		catch (Exception e) {
-			throw convert(e);
-		}
-    }
-
-    /**
      * Returns a EzQu session backed up by an underlying DB connection that is currently associated with the running thread
      * or 'null' if no Db is associated
      *
@@ -157,23 +130,6 @@ public final class EzquSessionFactory {
 			db = null;
 		}
     	return db;
-    }
-
-    /**
-     * Always returns a new Ezqu session, backed up by an underlying DB connection, which is not associated to the thread
-     * and thus it is up to the caller to manage the lifecycle of this session.
-     * When operating under the context of a transaction the caller needs to commit/ rollback the transaction before closing.
-     * <b>Use with care.</b>
-     *
-     * @return Db
-     */
-    public Db newLocalSession() {
-    	try {
-    		return createConnection();
-    	}
-    	catch (Exception e) {
-			throw convert(e);
-		}
     }
 
     /**
@@ -194,7 +150,7 @@ public final class EzquSessionFactory {
 	 * @return EzquSessionFactory
 	 */
     public EzquSessionFactory setTransactionManager(TransactionManager tm) {
-    	this.tm = tm;
+    	this.transactionStrategy = new JtaTransactionStrategy(tm);
     	return this;
     }
 
@@ -249,6 +205,48 @@ public final class EzquSessionFactory {
 	}
 
 	/**
+	 * Runs work inside a thread bound session and returns a value.<br>
+	 * If a db session already exists it will use the existing, if not it will create a new one.
+	 * 
+	 * @param <T>
+	 * @param supplier
+	 * @param options -use only options from {@link SessionOptions}
+	 * @return T
+	 */
+	public <T> T getFromSession(SessionSupplier<T> supplier, int... options) {
+		PreparedSession ps = prepareSession(options);
+		try (Db s = ps.session) {
+	        try {
+	        	return supplier.get(s);
+	        }
+	        finally {
+				if (ps.isOuter)
+					ps.session.resetScope().commit();
+			}
+	    }
+	}
+
+	/**
+	 * Runs work inside a thread bound session.<br>
+	 * If a db session already exists it will use the existing, if not it will create a new one.
+	 * 
+	 * @param supplier
+	 * @param options -use only options from {@link SessionOptions}
+	 */
+	public void runInSession(SessionVoidSupplier supplier, int ...options) {
+		PreparedSession ps = prepareSession(options);
+		try (Db s = ps.session) {
+			try {
+				supplier.execute(ps.session);
+			}
+			finally {
+				if (ps.isOuter)
+					ps.session.resetScope().commit();
+			}
+		}
+	}
+	
+	/**
 	 * removes the Db object from the current thread as it has been closed!!!
 	 */
 	void removeSession() {
@@ -274,7 +272,7 @@ public final class EzquSessionFactory {
     		 throw new EzquError("Missing table definition on Object {%s}", t.getClass().getSimpleName());
     	 List<FieldDefinition> primaryKeys = def.getPrimaryKeyFields();
     	 if (null == primaryKeys || primaryKeys.isEmpty())
-         	throw new EzquError("Object {%s} has no primary keys defined", t.getClass().getName());
+         	throw new EzquWarning("Object {%s} has no primary keys defined", t.getClass().getName());
 
          if (primaryKeys.size() > 1)
          	throw new EzquError("NOT SUPPORTED! - Can not return a key for an Object {%s} with more then one primary key defined!!!", t.getClass().getName());
@@ -334,41 +332,100 @@ public final class EzquSessionFactory {
 		}
     }
 
-    /*
-     * convert an exception to an error object
+    /**
+     * Returns a EzQu session backed up by an underlying DB connection.<br>
+     * When making multiple calls to get session on the same thread this methods attempts to return the same Db session provided
+     * it is still active.
+     *
+     * @return Db
      */
-    protected static Error convert(Exception e) {
-        return new Error(e);
+    private Db getSession()  {
+    	/* since it is not in the dataSource.getConnection contract
+    	 * to make sure we always get the open connection on the thread we take care of this here
+    	 */
+		Db db = currentSession();
+		if (null == db) {
+			db = createConnection();
+			currentSession.set(db);
+		}
+		return db;		
     }
+    
+    /**
+     * Always returns a new Ezqu session, backed up by an underlying DB connection, which is not associated to the thread
+     * and thus it is up to the caller to manage the lifecycle of this session.
+     * When operating under the context of a transaction the caller needs to commit/ rollback the transaction before closing.
+     * <b>Use with care.</b>
+     *
+     * @return Db
+     */
+    private Db newLocalSession() {
+   		return createConnection();
+    }
+    
+    private PreparedSession prepareSession(int... options) {
+		int mask = options != null && options.length > 0
+	               ? IntStream.of(options).reduce(0, (a,b) -> a | b)
+	               : 0;
 
+	    boolean scoped  = (mask & SessionOptions.SCOPED)  != 0;
+	    boolean current = (mask & SessionOptions.CURRENT) != 0;
+	    boolean newLocal= (mask & SessionOptions.NEW)     != 0;
+	    boolean commit  = (mask & SessionOptions.COMMIT)  != 0;
+
+	    Db base;
+	    if (current) {
+	        base = currentSession();
+	        if (base == null)
+	        	throw new IllegalStateException("No current session exists");
+	    }
+	    else if (newLocal) {
+	        base = newLocalSession();
+	    }
+	    else {
+	        base = getSession();
+	    }
+	    
+	    // The flag (true) when we have scope and are in the most outer scope level
+	    // it needs to run before we decide which session we're building
+	    boolean flag = !base.isScoped() && scoped;
+	    
+	    // Decide which Db instance will be scoped
+	    Db session = (base.isScoped() && commit) || flag ? base.applyScope(!commit) : base;
+	    return new PreparedSession(session, flag);
+	}
+    
     /**
 	 * Creates a database connection.
+	 * 
 	 * @return Db
-	 * @throws SQLException
-	 * @throws SystemException
-	 * @throws RollbackException
-	 * @throws IllegalStateException
+	 * @throws EzqiError
 	 */
-	private Db createConnection() throws Exception {
+	private Db createConnection() {
 		Connection conn = null;
-		try {
-			// if I'm an XADatasource I know that I'm in a transaction so don't play with autoCommit.
-			if (dataSource.isXA()) {
-				conn = dataSource.getXAConnection().getConnection();
+		try {	
+			try {
+				// if I'm an XADatasource I know that I'm in a transaction so don't play with autoCommit.
+				if (dataSource.isXA()) {
+					conn = dataSource.getXAConnection().getConnection();
+				}
+				else {
+					conn = dataSource.getConnection();
+				}
+				if (acidConfig == ACID_CONFIG.INTERNAL) {
+					conn.setAutoCommit(this.autoCommit);
+					conn.setTransactionIsolation(this.transactionIsolation);
+				}
 			}
-			else {
-				conn = dataSource.getConnection();
-			}
-			if (acidConfig == ACID_CONFIG.INTERNAL) {
-				conn.setAutoCommit(this.autoCommit);
-				conn.setTransactionIsolation(this.transactionIsolation);
+			catch (SQLException e) {
+				if (null != conn && !conn.isClosed()) {
+					conn.close();
+				}
+				throw e;
 			}
 		}
 		catch (Exception e) {
-			if (null != conn && !conn.isClosed()) {
-				conn.close();
-			}
-			throw e;
+			throw new EzquError(e, e.getMessage());
 		}
 		if (StatementLogger.isDebugEnabled())
 			StatementLogger.debug("opening connection " + conn.toString());
@@ -384,6 +441,7 @@ public final class EzquSessionFactory {
 
     /*
      * Define a table from class on underlying db.
+     * 
      * @param <T> - the class type to be defined
      * @param clazz - the class type to be defined
      * @param db - the Db session this is done under. Note that if definition
@@ -397,5 +455,15 @@ public final class EzquSessionFactory {
             def = db.factory.updateTableDefinition(clazz, db, allowCreate);
         }
         return def;
+    }
+    
+    private static class PreparedSession {    	
+		Db session;
+    	boolean isOuter;
+    	
+    	public PreparedSession(Db base, boolean scoped) {
+			this.session = base;
+			this.isOuter = scoped;
+		}
     }
 }

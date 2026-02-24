@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
@@ -144,8 +142,7 @@ public class QueryJoinWhere<T> {
 	 * @param alias an alias for the table to join
 	 * @return the joined query
 	 */
-    @SuppressWarnings("unchecked")
-    public <U> QueryJoin<T> innerJoin(U alias) {
+     public <U> QueryJoin<T> innerJoin(U alias) {
         return query.innerJoin(alias);
     }
 
@@ -268,6 +265,41 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * Returns the SQL String to be performed. Use for Debug.
+	 *
+	 * @return String
+	 */
+	public String logSQL() {
+		return query.logSQL();
+	}
+
+	/**
+	 * @see Query#logDistinctSQL()
+	 * @return String
+	 */
+	public String logDistinctSQL() {
+		return query.logDistinctSQL();
+	}
+
+	/**
+	 * @see Query#logSQL(Object)
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logSQL(Z z) {
+		return query.logSQL(z);
+	}
+
+	/**
+	 * @see Query#logDistinctSQL(Object)
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logDistinctSQL(Z z) {
+		return query.logDistinctSQL(z);
+	}
+	
+	/**
 	 * Performs A select similar to {@link #select(Object)} but with the 'DISTINCT' directive. Returns results or empty List. Never 'null'
 	 *
 	 * @param <Z>
@@ -365,6 +397,27 @@ public class QueryJoinWhere<T> {
 		return query.selectDistinctRightHandJoin(table, x);
 	}
 
+	/**
+	 * a "where exists" clause. Adds "WHERE EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryJoinWhere&lt;T&gt;
+	 */
+	public QueryJoinWhere<T> whereExists(QueryWhere<?> subQuery) {
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "where not exists" clause. Adds "WHERE NOT EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryJoinWhere&lt;T&gt;
+	 */
+	public QueryJoinWhere<T> whereNotExists(QueryWhere<?> subQuery) {
+		query.addConditionToken((s, q) -> s.appendSQL("NOT"));
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
 	/**
 	 * wraps everything following with "("<br>
 	 * <b>Must follow with matching "endWrap</b>

@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -19,6 +17,9 @@
  * 26/02/2011		shai				 create
  */
 package com.centimia.orm.ezqu.util;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 
@@ -120,5 +121,18 @@ public class StringUtils {
 			}
 		}
 		return buff.toString();
+	}
+	
+	public static String replaceOrAppend(Pattern pattern, String src, String repl) {
+	    Matcher m = pattern.matcher(src);
+
+	    if (m.find()) {
+	        // Replace every occurrence (or use m.replaceFirst(...) if you only want one)
+	        return m.replaceAll(repl);
+	    }
+	    else {
+	        // Nothing matched – append the replacement string
+	        return src + repl;
+	    }
 	}
 }

@@ -4,10 +4,8 @@
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
@@ -27,9 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-
-import javax.transaction.Status;
-import javax.transaction.SystemException;
 
 import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.Event;
@@ -180,8 +175,8 @@ public class Db implements AutoCloseable {
      * @param <X>
      * @param t
      * @return X the primary key.
-     * @throws JaquError when no primary keys exists or more then one primary key exists or when the object inserted and primary key could not be retrieved
-     * @throws RuntimeException (could also be a JaquError) when insert failed.
+     * @throws EzquError when no primary keys exists or more then one primary key exists or when the object inserted and primary key could not be retrieved
+     * @throws RuntimeException when insert failed.
      */
     public <T,X> X insertAndGetPK(T t) {
 		X pk = insertAndGetPK(t, FULL_DEPTH);
@@ -224,7 +219,7 @@ public class Db implements AutoCloseable {
 		try {
 			pk = (X) primaryKeys.get(0).field.get(t);
 		}
-		catch (EzquError je) {
+		catch (EzquError | EzquWarning je) {
 			throw je;
 		}
 		catch (Exception e) {
@@ -688,7 +683,7 @@ public class Db implements AutoCloseable {
      * @param alias
      * @return QueryInterface<T>
      */
-    public <T extends Object> QueryInterface<T> from(T alias) {
+    public <T extends Object> Query<T> from(T alias) {
     	if (this.closed)
     		throw new EzquError(SESSION_IS_CLOSED);
         return Query.from(this, alias);
@@ -781,18 +776,19 @@ public class Db implements AutoCloseable {
      */
     public Db applyScope(boolean externalCommit) {
     	if (this.commitExternal && !externalCommit) {
-    		// we can't change commit state from 'true' to 'false', only from 'false' to 'true'. The reason is that if an external call declared
-    		// that it will manage commit, an internal is not allowed to change this decision.
-    		String msg = String.format("This scope is managed externally from %s. You can not set values which were scoped previously in an outer scope back to unscoped "
-    				+ "unless you are within the same outer scope.\n"
-    				+ "To reset the scope use resetScope method!!! If you need to specifically commit a connection in an internal method scope "
-    				+ "use a different connection by calling 'newLocalSession' on the factory.", scopeChangeCaller);
-    		throw new EzquError(msg);
+    		// we change commit state from 'true' to 'false', this is an unusual request and should be logged.
+    		String msg = """
+                    Requsted to change commit option for this session. This scope is managed externally from %s.
+                    It is unusual to change a previously made decision to control commit from an outer scope.
+                    Make sure you understand what you are doing and reInstate 'externalCommit = true' when leaving your scope. 
+                    Within your scope db commits will be satisfied!!!
+                    """.formatted(scopeChangeCaller);
+    		StatementLogger.info(msg);
     	}
    		this.commitExternal = externalCommit;
     	
     	if (!closeExternal) {
-	    	// the following line records the caller of the applyScope so that we can tell "who" applied scope to begin with.
+	    	// the following code row records the caller of the applyScope so that we can tell "who" applied scope to begin with.
     		// only when closeExternal is still false on this call we are at the first caller.
 	   		scopeChangeCaller = WALKER.walk(stream -> stream.skip(2)
 	   								.map(StackWalker.StackFrame::toStackTraceElement)
@@ -819,7 +815,7 @@ public class Db implements AutoCloseable {
      *
      * @return Db
      */
-    public Db resetScope() {
+    Db resetScope() {
     	this.closeExternal = false;
     	this.commitExternal = false;
     	this.scopeChangeCaller = null;
@@ -837,23 +833,10 @@ public class Db implements AutoCloseable {
 		try {
 			try {
 				this.rollbackOnly = true;
-				if (null != this.factory.tm && null != this.factory.tm.getTransaction() && 
-					hasRunningTransaction(this.factory.tm.getTransaction().getStatus())) {
-						
-					try {
-						this.factory.tm.getTransaction().setRollbackOnly();
-						return;
-					}
-					catch (IllegalStateException e) {
-						StatementLogger.error("trying to roll back transaction when it is not allowed [" + e.getMessage() + "]");
-					}
-					catch (SystemException e) {
-						StatementLogger.error("unable to mark connection for rollback for an unknown reason. [" + e.getMessage() + "]");
-					}
+				if (null != this.factory.transactionStrategy && this.factory.transactionStrategy.isTransactionActive(false)) {						
+					this.factory.transactionStrategy.setRollbackOnly();
+					return;
 				}
-			}
-			catch (SystemException e) {
-				StatementLogger.error("unable to get status on transaction for an unknown reason. [" + e.getMessage() + "]");
 			}
 			catch (NullPointerException npe) {
 				// Just in case, this should not happen!
@@ -882,14 +865,11 @@ public class Db implements AutoCloseable {
 					rollback();
 					return;
 				}
-				if (null != this.factory.tm && null != this.factory.tm.getTransaction()
-					&& hasRunningTransaction(this.factory.tm.getTransaction().getStatus())) {
+				
+				if (null != this.factory.transactionStrategy && this.factory.transactionStrategy.isTransactionActive(false)) {
 					// if we're in a running transaction it is up to the transaction manager to commit not me.
 					return;
 				}
-			}
-			catch (SystemException e) {
-				StatementLogger.error("unable to get status on transaction for an unknown reason. [" + e.getMessage() + "]");
 			}
 			catch (NullPointerException npe) {
 				// this means that there is no transaction (getTransaction() was null)
@@ -913,14 +893,9 @@ public class Db implements AutoCloseable {
         			return;
 
         		// if we're in a running transaction that has not been committed it is not up to me to close the connection
-        		if (null != this.factory.tm && null != this.factory.tm.getTransaction()) {
-        			int status = this.factory.tm.getTransaction().getStatus();
-        			if (hasRunningTransaction(status) && status != Status.STATUS_COMMITTED)
-        				return;
+        		if (null != this.factory.transactionStrategy && this.factory.transactionStrategy.isTransactionActive(true)) {
+        			return;
         		}
-			}
-			catch (SystemException e) {
-				StatementLogger.error("unable to get transaction status for an unknown reason. [" + e.getMessage() + "]");
 			}
         	catch (NullPointerException npe) {
 				// this means that there is no transaction (getTransaction() was null)
@@ -1886,15 +1861,6 @@ public class Db implements AutoCloseable {
 		this.commitExternal = false;
 		this.rollbackOnly = false;
 		tokens.clear();
-	}
-
-	/**
-	 * returns true if there is a running transaction status
-	 * @param status
-	 * @return boolean
-	 */
-	private boolean hasRunningTransaction(int status) {
-		return status != Status.STATUS_NO_TRANSACTION && status != Status.STATUS_UNKNOWN;
 	}
 
 	private void handleM2Mrelationship(FieldDefinition field, Object table, Object obj, String primaryKey, String relationPK) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Shai Bentin & Centimia Inc..
+ * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
@@ -10,6 +10,17 @@
  * REPRODUCTION IS PROHIBITED WITHOUT THE PRIOR EXPRESS
  * WRITTEN PERMISSION OF Shai Bentin & CENTIMIA, INC.
  */
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	
+	dependencies {
+		classpath 'org.apache.maven:maven-core:3.9.12'
+		classpath 'org.apache.maven.plugin-tools:maven-plugin-tools-annotations:3.15.2' // maven-plugin-annotations
+    	classpath 'org.apache.maven.plugin-tools:maven-plugin-tools-generators:3.15.2'
+	}
+}
 plugins {
     id 'java-library'
     id 'eclipse'
@@ -24,16 +35,22 @@ group = 'com.centimia'
 version   = "${mainJarVersion}"
 
 dependencies {
-	implementation 'javax.transaction:jta:1.1'
 	implementation 'com.centimia:ccoreException:1.0.2'
 	
+	compileOnly 'javax.transaction:javax.transaction-api:1.3'
 	compileOnly 'org.slf4j:slf4j-api:2.0.16'
 	compileOnly 'org.ow2.asm:asm:9.7.1'
 	compileOnly 'org.ow2.asm:asm-commons:9.7.1'
 	compileOnly 'org.ow2.asm:asm-util:9.7.1'
-	compileOnly 'org.apache.ant:ant:1.9.7'
+	compileOnly 'org.apache.ant:ant:1.10.15'
+	
 	compileOnly gradleApi()
-    //compileOnly localGroovy()
+    
+    compileOnly 'org.apache.maven:maven-plugin-api:3.9.12'    
+    compileOnly 'org.apache.maven.plugin-tools:maven-plugin-tools-annotations:3.15.2' // maven-plugin-annotations
+    // implementation 'org.apache.maven.plugin-tools:maven-plugin-tools-generators:3.15.2'
+    // implementation 'org.apache.maven:maven-core:3.9.12'
+    // annotationProcessor 'org.apache.maven.plugin-tools:maven-plugin-tools-annotations:3.15.2'
 }
 
 javadoc {
@@ -52,48 +69,158 @@ repositories {
     }
 }
 
+sourceSets {
+    main {
+        java {            
+            srcDirs = ['src/main/core', 'src/main/ext', 'src/main/resources']
+        }
+    }
+}
+
+import org.apache.maven.tools.plugin.PluginToolsRequest
+import org.apache.maven.tools.plugin.generator.PluginDescriptorFilesGenerator
+import org.apache.maven.tools.plugin.DefaultPluginToolsRequest
+import org.apache.maven.plugin.descriptor.PluginDescriptor
+import org.apache.maven.project.MavenProject
+import org.apache.maven.model.Build
+import org.apache.maven.plugin.descriptor.MojoDescriptor
+import org.codehaus.plexus.component.repository.ComponentDependency
+
+tasks.register('mavenPlugin') {
+    group = 'build'
+    description = 'Generates Maven plugin descriptor (plugin.xml) from @Mojo classes'
+
+    dependsOn tasks.compileJava
+
+    doLast {
+    	def build = new Build()
+    	build.setDirectory("$buildDir/classes/java/main")
+    	build.setSourceDirectory('src/ext/java')
+    	
+		def project = new MavenProject()
+		project.setGroupId('com.centimia')
+		project.setArtifactId('ezqu-maven-plugin')
+		project.setVersion("$mainJarVersion")
+		project.addCompileSourceRoot('src/main/ext')
+		project.setBuild(build)
+		
+        // Step 2: create a PluginDescriptor
+		def descriptor = new PluginDescriptor()
+		descriptor.setGroupId(project.groupId)
+		descriptor.setArtifactId(project.artifactId)
+		descriptor.setVersion(project.version)
+		descriptor.setGoalPrefix('ezqu')
+		descriptor.setName("ezqu-maven-plugin")
+		descriptor.setDescription("Executes post-compile tasks for EzQu")
+		descriptor.setIsolatedRealm(false)
+		descriptor.setInheritedByDefault(true)
+
+		def mojo = new MojoDescriptor()
+		mojo.setImplementation("com.centimia.orm.ezqu.ext.maven.PostCompileMojo") // fully qualified class
+		mojo.setGoal("ezqu")
+		mojo.setLanguage("java")
+		mojo.setDescription("Executes post-compile tasks for EzQu")
+		mojo.setPhase("process-classes") // optional
+		descriptor.addMojo(mojo)
+
+		def asm = new ComponentDependency()
+		asm.setGroupId("org.ow2.asm")
+		asm.setArtifactId("asm")
+		asm.setVersion("9.7.1")
+
+		def asmCommons = new ComponentDependency()
+		asmCommons.setGroupId("org.ow2.asm")
+		asmCommons.setArtifactId("asm-commons")
+		asmCommons.setVersion("9.7.1")
+		
+		def asmUtil = new ComponentDependency()
+		asmUtil.setGroupId("org.ow2.asm")
+		asmUtil.setArtifactId("asm-util")
+		asmUtil.setVersion("9.7.1")
+		
+		descriptor.addDependency(asm)
+		descriptor.addDependency(asmCommons)
+		descriptor.addDependency(asmUtil)
+		
+		//def classesDir = file("$buildDir/classes/java/main")
+		def outputDir = file("$buildDir/resources/main/META-INF/maven")
+
+        outputDir.mkdirs()
+
+        def request = new DefaultPluginToolsRequest(project, descriptor)
+        request.setEncoding('UTF-8')
+
+        def generator = new PluginDescriptorFilesGenerator()
+        generator.execute(outputDir, request)
+
+        println "plugin.xml generated at: ${outputDir}/META-INF/maven/plugin.xml"
+    }
+}
+
 tasks.register('binJar', Jar) {
-    // The default classifier is an empty string – i.e. the plain JAR
+	dependsOn tasks.named('mavenPlugin')
+	
     from sourceSets.main.output
-    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*'
+    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*', 'plugin-enhanced.xml'
     archiveBaseName.set('ezqu')   // keep the original artifactId
     archiveVersion.set("${mainJarVersion}")
 }
 
-tasks.register('extJar', Jar) {
+tasks.register('gradleJar', Jar) {
     from sourceSets.main.output
-    include 'com/centimia/orm/ezeq/ext/**', 'META-INF/**'
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/gradle/**', 'META-INF/gradle-plugins/**'
+    archiveBaseName.set('ezqu-gradle-plugin')
+    archiveClassifier.set('')     // “extension” JAR has no classifier
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('mavenJar', Jar) {
+    from sourceSets.main.output
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/maven/**', 'META-INF/maven/**', 'plugin-enhanced.xml'
+    archiveBaseName.set('ezqu-maven-plugin')
+    archiveClassifier.set('')     // “extension” JAR has no classifier
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('antJar', Jar) {	
+    from sourceSets.main.output
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/ant/**'
+    archiveBaseName.set('ezqu-ant-plugin')
+    archiveClassifier.set('')     // “extension” JAR has no classifier
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('extJar', Jar) {	
+    from sourceSets.main.output
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**'
     archiveBaseName.set('ezqu-ext')
     archiveClassifier.set('')     // “extension” JAR has no classifier
-    archiveVersion.set(version)
+    archiveVersion.set("${extJarVersion}")
 }
 
 // Sources jar (the Java‑library plugin already creates one)
 tasks.register('sourceJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allJava
+    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*'
+    archiveBaseName.set('ezqu')
+    archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
 }
-
-// Optional: javadoc jar
-// tasks.register('javadocJar', Jar) {
-//     dependsOn tasks.javadoc
-//     archiveClassifier.set('javadoc')
-//     from tasks.javadoc.destinationDir
-// }
 	
 publishing {
 	publications {
 		binary(MavenPublication) {
-            from components.java
-            artifactId = 'ezqu'
-            version   = "${mainJarVersion}"
-
+			artifactId = 'ezqu'
+            version   = project.version
+            
             // Use the “jar” task you created
             artifact tasks.binJar
-
+			artifact tasks.sourceJar
+			
             // POM – the DSL is easier than the raw XML approach
             pom {
-                name.set('EzQu')
+                name.set('ezqu')
                 description.set('EzQu is an O/R Mapping tool and a JDBC wrapping framework.')
                 url.set('https://github.com/centimia/ezqu')     // adjust
                 licenses {
@@ -113,29 +240,40 @@ publishing {
                         email.set('info@centimia.com')
                     }
                 }
+                scm {
+                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                }
+                
+                // --- add dependencies ---
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    dependenciesNode.appendNode('dependency').with {
+                        appendNode('groupId', 'com.centimia')
+                        appendNode('artifactId', 'ccoreException')
+                        appendNode('version', '1.0.2')
+                    }
+                }
             }
         }
 		
 		// “extension” publication – the JAR that contains the byte‑code builders
         ext(MavenPublication) {
-            from components.java
-            artifactId = 'ezqu-ext'
+        	artifactId = 'ezqu-ext'
             version   = project.version
-
+            
             artifact tasks.extJar
-
+			
             pom {
-                name.set('EzQu‑Ext')
-                description.set('Library for ezqu entity post‑compilation byte‑code builders. Includes builders for ant and gradle.')
+                name.set('ezqu-ext')
+                description.set('Library for ezqu entity post‑compilation byte‑code builders. Used for ide plugins')
                 url.set('https://github.com/centimia/ezqu')     // adjust
                 licenses {
                     license {
                         name.set('Eclipse Public License v1.0')
                         url.set('https://www.eclipse.org/legal/epl-v10.html')
-                    }
-                    license {
-                        name.set('H2 License v1.0')
-                        url.set('http://h2database.com/html/license.html')
                     }
                 }
                 developers {
@@ -145,9 +283,159 @@ publishing {
                         email.set('shai@centimia.com')
                     }
                 }
+                scm {
+                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                }
             }
         }
 		
+		// “extension” publication – the JAR that contains the byte‑code builders
+        gradle(MavenPublication) {
+            // from components.java
+            artifactId = 'ezqu-gradle-plugin'
+            version   = project.version
+
+            artifact tasks.gradleJar
+
+            pom {
+                name.set('ezqu‑gradle-plugin')
+                description.set('Gradle plugin for ezqu entity post‑compilation byte‑code.')
+                url.set('https://github.com/centimia/ezqu')     // adjust
+                licenses {
+                    license {
+                        name.set('Eclipse Public License v1.0')
+                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                    }
+                }
+                developers {
+                    developer {
+                        id.set('centimia')
+                        name.set('Centimia')
+                        email.set('shai@centimia.com')
+                    }
+                }
+                scm {
+                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                }
+                
+                // --- add dependencies ---
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    // Example: ASM runtime dependencies
+                    ['asm', 'asm-commons', 'asm-util'].each { artifact ->
+                        dependenciesNode.appendNode('dependency').with {
+                            appendNode('groupId', 'org.ow2.asm')
+                            appendNode('artifactId', artifact)
+                            appendNode('version', '9.7.1')
+                        }
+                    }
+                }
+            }
+        }
+        
+        // “extension” publication – the JAR that contains the byte‑code builders
+        maven(MavenPublication) {
+            artifactId = 'ezqu-maven-plugin'
+            version   = project.version
+
+            artifact tasks.mavenJar
+
+            pom {
+                name.set('ezqu‑maven-plugin')
+                description.set('Maven plugin for ezqu entity post‑compilation byte‑code.')
+                url.set('https://github.com/centimia/ezqu')     // adjust
+                licenses {
+                    license {
+                        name.set('Eclipse Public License v1.0')
+                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                    }
+                }
+                developers {
+                    developer {
+                        id.set('centimia')
+                        name.set('Centimia')
+                        email.set('shai@centimia.com')
+                    }
+                }
+                scm {
+                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                }
+                
+                // --- add dependencies ---
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    // Example: ASM runtime dependencies
+                    ['asm', 'asm-commons', 'asm-util'].each { artifact ->
+                        dependenciesNode.appendNode('dependency').with {
+                            appendNode('groupId', 'org.ow2.asm')
+                            appendNode('artifactId', artifact)
+                            appendNode('version', '9.7.1')
+                        }
+                    }
+                }
+            }
+        }
+        
+        // “extension” publication – the JAR that contains the byte‑code builders
+        ant(MavenPublication) {
+            artifactId = 'ezqu-ant-plugin'
+            version   = project.version
+
+            artifact tasks.antJar
+
+            pom {
+                name.set('ezqu‑ant-plugin')
+                description.set('Ant plugin for ezqu entity post‑compilation byte‑code.')
+                url.set('https://github.com/centimia/ezqu')     // adjust
+                licenses {
+                    license {
+                        name.set('Eclipse Public License v1.0')
+                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                    }
+                }
+                developers {
+                    developer {
+                        id.set('centimia')
+                        name.set('Centimia')
+                        email.set('shai@centimia.com')
+                    }
+                }
+                scm {
+                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
+                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                }
+                
+                // --- add dependencies ---
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+					dependenciesNode.appendNode('dependency').with {
+                        appendNode('groupId', 'org.apache.ant')
+                        appendNode('artifactId', 'ant')
+                        appendNode('version', '1.10.15')
+                    }
+                        
+                    // Example: ASM runtime dependencies
+                    ['asm', 'asm-commons', 'asm-util'].each { artifact ->
+                        dependenciesNode.appendNode('dependency').with {
+                            appendNode('groupId', 'org.ow2.asm')
+                            appendNode('artifactId', artifact)
+                            appendNode('version', '9.7.1')
+                        }
+                    }
+                }
+            }
+        }
+        
 //		javaDoc(MavenPublication) {
 //			artifactId = "ezqu"
 //			version = "${mainJarVersion}"
@@ -156,17 +444,17 @@ publishing {
 	}
 	
 	repositories {
-//        maven {
-//            url "${artifactory_contextUrl}/libs-release-local"
-//            credentials {
-//                username = "${artifactory_user}"
-//                password = "${artifactory_password}"
-//            }
-//       }
-        
         maven {
-            url = layout.buildDirectory.dir('staging-deploy')
-        }
+            url "${artifactory_contextUrl}/libs-release-local"
+            credentials {
+                username = "${artifactory_user}"
+                password = "${artifactory_password}"
+            }
+       }
+        
+//        maven {
+//            url = layout.buildDirectory.dir('staging-deploy')
+//        }
     }
     
     jreleaser {
@@ -194,7 +482,7 @@ publishing {
 
 			    // The user or organization that owns the repository.
 			    //
-			    repoOwner = 'shai'
+			    repoOwner = '${artifactory_user}'
 
 			    // The name of the repository.
 			    // If unspecified, will use `#{project.name}`.
@@ -207,11 +495,11 @@ publishing {
       			// Username used for authoring commits. Must have write access to the repository.
       			// Defaults to the repository's owner.
       			//
-      			username = 'shai'
+      			username = '${artifactory_user}'
 
       			// Password or OAuth token with write access to the repository.
       			//
-      			token = 'eyJhcGlLZXlJZCI6IjJqVjVTR3dGWjhGIiwidXNlciI6InNoYWkiLCJwYXNzcGhyYXNlIjoiMVM0VU4zOGZINU54TVRlb29kMm8ifQ'
+      			token = '${scmWriteToken}'
       			
       			// The tag associated with the release.
       			// If left unspecified, will use `v{{projectVersion}}`.
@@ -249,7 +537,7 @@ publishing {
       			// The target branch to pull from.
       			// Defaults to the branch pointed by HEAD.
       			//
-      			branch = 'main'
+      			branch = 'master'
 
       			// The target branch to push to.
       			// Defaults to the branch pointed by `#{branch}`.

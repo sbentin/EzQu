@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -20,14 +18,17 @@
  */
 package com.centimia.orm.ezqu.dialect;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
+import java.util.Arrays;
 import java.util.Date;
 
 import com.centimia.core.ExceptionMessages;
@@ -58,19 +59,22 @@ public class OracleDialect implements SQLDialect {
 			return VARCHAR2;
 		}
 		else if (fieldClass == Double.class) {
-			return "NUMBER(38,15)";
+			return "NUMBER(33,5)";
 		}
 		else if (fieldClass == java.math.BigDecimal.class) {
-			return "NUMBER(38,15)";
+			return "NUMBER(33,5)";
+		}
+		else if (fieldClass == java.math.BigInteger.class) {
+			return "NUMBER(38,0)";
 		}
 		else if (fieldClass == java.util.Date.class) {
 			return TIMESTAMP_6;
 		}
 		else if (fieldClass == java.sql.Date.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.time.LocalDate.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.time.LocalDateTime.class) {
 			return TIMESTAMP_6;
@@ -79,10 +83,10 @@ public class OracleDialect implements SQLDialect {
 			return TIMESTAMP_6;
 		}
 		else if (fieldClass == java.time.LocalTime.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.sql.Time.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.sql.Timestamp.class) {
 			return "TIMESTAMP(9)";
@@ -103,7 +107,7 @@ public class OracleDialect implements SQLDialect {
 			return "NUMBER(38,7)";
 		}
 		else if (fieldClass == java.sql.Blob.class) {
-			return "BLOB";
+			return BLOB;
 		}
 		else if (fieldClass == java.sql.Clob.class) {
 			return "CLOB";
@@ -113,10 +117,13 @@ public class OracleDialect implements SQLDialect {
 			Class<?> componentClass = fieldClass.getComponentType();
 			if (null != componentClass.getAnnotation(Entity.class) || null != componentClass.getAnnotation(MappedSuperclass.class))
 				throw new EzquError("IllegalArgument - Array of type 'com.centimia.orm.ezqu.Entity' are relations. Either mark as transient or use a Collection type instead.");
-			return "BLOB";
+			return BLOB;
 		}
 		else if (fieldClass.isEnum()) {
 			return VARCHAR2;
+		}
+		else if (null != fieldClass.getInterfaces() && Arrays.stream(fieldClass.getInterfaces()).anyMatch(i -> i == Serializable.class)) {
+			return BLOB;
 		}
 		return VARCHAR2;
 	}
@@ -139,51 +146,87 @@ public class OracleDialect implements SQLDialect {
 	 */
 	@Override
 	public Object getValueByType(Types type, ResultSet rs, String columnName) throws SQLException {
-		switch (type) {
-    		case INTEGER: return (rs.getObject(columnName) != null) ? rs.getInt(columnName): null;
-    		case LONG: return (rs.getObject(columnName) != null) ? rs.getLong(columnName): null;
-    		case BIGDECIMAL: return rs.getBigDecimal(columnName);
-    		case BOOLEAN: return (rs.getObject(columnName) != null) && rs.getBoolean(columnName);
-    		case BLOB: return rs.getObject(columnName);
-    		case CLOB: return rs.getClob(columnName);
-    		case BYTE: return (rs.getObject(columnName) != null) ? rs.getByte(columnName): null;
-    		case STRING: return rs.getString(columnName);
-    		case ENUM: return rs.getString(columnName);
-    		case ENUM_INT: return rs.getInt(columnName);
-    		case DOUBLE: return (rs.getObject(columnName) != null) ? rs.getDouble(columnName): null;
-    		case FLOAT: return (rs.getObject(columnName) != null) ? rs.getFloat(columnName): null;
-    		case SHORT: return (rs.getObject(columnName) != null) ? rs.getShort(columnName): null;
-    		case TIMESTAMP: return rs.getTimestamp(columnName);
-    		case SQL_DATE: return rs.getDate(columnName);
-    		case UTIL_DATE: return rs.getTimestamp(columnName);
-    		case LOCALDATE: return null != rs.getDate(columnName) ? rs.getDate(columnName).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null; // TODO this should be fixed
-    		case LOCALTIME: return null != rs.getTime(columnName) ? null != rs.getTime(columnName).toLocalTime() : null;
-    		case TIME: return rs.getTime(columnName);
-    		case FK: {
+		return switch (type) {
+			case INTEGER ->  {
+	            int i = rs.getInt(columnName);
+	            yield rs.wasNull() ? null : Integer.valueOf(i);
+	        }
+			case LONG -> {
+				long l = rs.getLong(columnName);
+				yield rs.wasNull() ? null : Long.valueOf(l);
+			}
+			case DOUBLE -> {
+				double d = rs.getDouble(columnName);
+				yield rs.wasNull() ? null : Double.valueOf(d);
+			}
+			case FLOAT -> {
+				float f = rs.getFloat(columnName);
+				yield rs.wasNull() ? null : Float.valueOf(f);
+			}
+			case SHORT -> {
+				short s = rs.getShort(columnName);
+				yield rs.wasNull() ? null : Short.valueOf(s);
+			}
+			case BOOLEAN -> rs.getBoolean(columnName);
+	        case STRING -> rs.getString(columnName);
+	        case BYTE ->  {
+	            byte b = rs.getByte(columnName);
+	            yield rs.wasNull() ? null : b;
+	        }
+	        case ENUM -> rs.getString(columnName);
+			case ENUM_INT ->  {
+	            int i = rs.getInt(columnName);
+	            yield rs.wasNull() ? null : Integer.valueOf(i);
+	        }
+	        case BIGDECIMAL -> rs.getBigDecimal(columnName);
+	        case BIGINTEGER -> {
+	        	BigDecimal bd = rs.getBigDecimal(columnName);
+	        	yield rs.wasNull() ? null : bd.toBigInteger();
+	        }
+	        case CLOB -> rs.getClob(columnName);
+	        case TIMESTAMP -> rs.getTimestamp(columnName);
+    		case SQL_DATE -> rs.getDate(columnName);
+    		case UTIL_DATE -> rs.getTimestamp(columnName);
+	        case LOCALDATE -> {
+	            java.sql.Date d = rs.getDate(columnName);
+	            yield d == null ? null : d.toLocalDate();
+	        }
+	        case LOCALDATETIME -> {
+	            java.sql.Timestamp ts = rs.getTimestamp(columnName);
+	            yield ts == null ? null : ts.toLocalDateTime();
+	        }
+	        case ZONEDDATETIME -> {
+	            java.sql.Timestamp ts = rs.getTimestamp(columnName);
+	            yield ts == null ? null : ts.toInstant().atZone(ZoneId.systemDefault());
+	        }
+	        case LOCALTIME -> {
+	            java.sql.Time t = rs.getTime(columnName);
+	            yield t == null ? null : t.toLocalTime();
+	        }
+	        case TIME -> rs.getTime(columnName);
+	        case FK -> {
     			Object o = rs.getObject(columnName); 
-    			if (o != null) {
+    			if (null != o) {
     				if (o instanceof BigDecimal bd) {
 	    				if (bd.scale() == 0) {
 	    					if (bd.precision() <= 10)
-	    						return rs.getInt(columnName);
+	    						yield rs.getInt(columnName);
 	    					else
-	    						return rs.getLong(columnName);
+	    						yield rs.getLong(columnName);
 	    				}
 	    				else if (bd.scale() == 14) {
-	    					return rs.getFloat(columnName);
+	    					yield rs.getFloat(columnName);
 	    				}
 	    				else
-	    					return rs.getDouble(columnName);
+	    					yield rs.getDouble(columnName);
     				}
     				else
-    					return o;
+    					yield o;
     			}
-    			return null;
+    			yield null;
     		}
-    		default: return null;
-    	}
+	        default -> rs.getObject(columnName);
+	    };
 	}
 
 	/**
@@ -193,51 +236,87 @@ public class OracleDialect implements SQLDialect {
 	 */
 	@Override
 	public Object getValueByType(Types type, ResultSet rs, int columnNumber) throws SQLException {
-		switch (type) {
-    		case INTEGER: return (rs.getObject(columnNumber) != null) ? rs.getInt(columnNumber): null;
-    		case LONG: return (rs.getObject(columnNumber) != null) ? rs.getLong(columnNumber): null;
-    		case BIGDECIMAL: return rs.getBigDecimal(columnNumber);
-    		case BOOLEAN: return (rs.getObject(columnNumber) != null) && rs.getBoolean(columnNumber);
-    		case BLOB: return rs.getObject(columnNumber);
-    		case CLOB: return rs.getClob(columnNumber);
-    		case BYTE: return (rs.getObject(columnNumber) != null) ? rs.getByte(columnNumber): null;
-    		case STRING: return rs.getString(columnNumber);
-    		case ENUM: return rs.getString(columnNumber);
-    		case ENUM_INT: return rs.getInt(columnNumber);
-    		case DOUBLE: return (rs.getObject(columnNumber) != null) ? rs.getDouble(columnNumber): null;
-    		case FLOAT: return (rs.getObject(columnNumber) != null) ? rs.getFloat(columnNumber): null;
-    		case SHORT: return (rs.getObject(columnNumber) != null) ? rs.getShort(columnNumber): null;
-    		case TIMESTAMP: return rs.getTimestamp(columnNumber);
-    		case SQL_DATE: return rs.getDate(columnNumber);
-    		case UTIL_DATE: return rs.getTimestamp(columnNumber);
-    		case LOCALDATE: return null != rs.getDate(columnNumber) ? rs.getDate(columnNumber).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null; // TODO this should be fixed
-    		case LOCALTIME: return null != rs.getTime(columnNumber) ? null != rs.getTime(columnNumber).toLocalTime() : null;
-    		case TIME: return rs.getTime(columnNumber);
-    		case FK: {
-    			Object o = rs.getObject(columnNumber); 
-    			if (o != null) {
-    				if (o instanceof BigDecimal bd) {
+		return switch (type) {
+			case INTEGER ->  {
+	            int i = rs.getInt(columnNumber);
+	            yield rs.wasNull() ? null : Integer.valueOf(i);
+	        }
+			case LONG -> {
+				long l = rs.getLong(columnNumber);
+				yield rs.wasNull() ? null : Long.valueOf(l);
+			}
+			case DOUBLE -> {
+				double d = rs.getDouble(columnNumber);
+				yield rs.wasNull() ? null : Double.valueOf(d);
+			}
+			case FLOAT -> {
+				float f = rs.getFloat(columnNumber);
+				yield rs.wasNull() ? null : Float.valueOf(f);
+			}
+			case SHORT -> {
+				short s = rs.getShort(columnNumber);
+				yield rs.wasNull() ? null : Short.valueOf(s);
+			}
+			case BOOLEAN -> rs.getBoolean(columnNumber);
+	        case STRING -> rs.getString(columnNumber);
+	        case BYTE ->  {
+	            byte b = rs.getByte(columnNumber);
+	            yield rs.wasNull() ? null : b;
+	        }
+	        case ENUM -> rs.getString(columnNumber);
+			case ENUM_INT ->  {
+	            int i = rs.getInt(columnNumber);
+	            yield rs.wasNull() ? null : Integer.valueOf(i);
+	        }
+	        case BIGDECIMAL -> rs.getBigDecimal(columnNumber);
+	        case BIGINTEGER -> {
+	        	BigDecimal bd = rs.getBigDecimal(columnNumber);
+	        	yield rs.wasNull() ? null : bd.toBigInteger();
+	        }
+	        case CLOB -> rs.getClob(columnNumber);
+	        case TIMESTAMP -> rs.getTimestamp(columnNumber);
+			case SQL_DATE -> rs.getDate(columnNumber);
+			case UTIL_DATE -> rs.getTimestamp(columnNumber);
+	        case LOCALDATE -> {
+	            java.sql.Date d = rs.getDate(columnNumber);
+	            yield d == null ? null : d.toLocalDate();
+	        }
+	        case LOCALDATETIME -> {
+	            java.sql.Timestamp ts = rs.getTimestamp(columnNumber);
+	            yield ts == null ? null : ts.toLocalDateTime();
+	        }
+	        case ZONEDDATETIME -> {
+	            java.sql.Timestamp ts = rs.getTimestamp(columnNumber);
+	            yield ts == null ? null : ts.toInstant().atZone(ZoneId.systemDefault());
+	        }
+	        case LOCALTIME -> {
+	            java.sql.Time t = rs.getTime(columnNumber);
+	            yield t == null ? null : t.toLocalTime();
+	        }
+	        case TIME -> rs.getTime(columnNumber);
+	        case FK -> {
+				Object o = rs.getObject(columnNumber); 
+				if (null != o) {
+					if (o instanceof BigDecimal bd) {
 	    				if (bd.scale() == 0) {
 	    					if (bd.precision() <= 10)
-	    						return rs.getInt(columnNumber);
+	    						yield rs.getInt(columnNumber);
 	    					else
-	    						return rs.getLong(columnNumber);
+	    						yield rs.getLong(columnNumber);
 	    				}
 	    				else if (bd.scale() == 14) {
-	    					return rs.getFloat(columnNumber);
+	    					yield rs.getFloat(columnNumber);
 	    				}
 	    				else
-	    					return rs.getDouble(columnNumber);
-    				}
-    				else
-    					return o;
-    			}
-    			return null;
-    		}
-    		default: return null;
-    	}
+	    					yield rs.getDouble(columnNumber);
+					}
+					else
+						yield o;
+				}
+				yield null;
+			}
+	        default -> rs.getObject(columnNumber);
+	    };
 	}
 	
 	@Override
@@ -258,10 +337,10 @@ public class OracleDialect implements SQLDialect {
 
 	@Override
 	public String getFunction(Functions functionName) {
-		switch (functionName){
-			case IFNULL: return "NVL";
-		}
-		return "";
+		return switch (functionName){
+			case IFNULL -> "NVL";
+			default -> "";
+		};
 	}
 
 	@Override
@@ -318,6 +397,4 @@ public class OracleDialect implements SQLDialect {
 		}
 		throw new EzquError(e, e.getMessage());
 	}
-	
-	
 }

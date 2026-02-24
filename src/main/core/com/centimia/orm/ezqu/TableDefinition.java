@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
@@ -20,6 +18,7 @@ import java.sql.BatchUpdateException;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,8 +73,6 @@ class TableDefinition<T> {
 	private List<FieldDefinition> fields = new ArrayList<>();
 	private List<FieldDefinition> primaryKeyColumnNames;
 	private List<FieldDefinition> oneToOneRelations;	
-	private GeneratorType genType = GeneratorType.NONE;
-	private String sequenceQuery = null;
 	
 	@SuppressWarnings("rawtypes")
 	private CRUDInterceptor	intercepter;
@@ -329,14 +326,19 @@ class TableDefinition<T> {
 				fieldDef.type = getTypes(classType);
 				if (String.class.isAssignableFrom(classType) || classType.isEnum()) {
 					// strings have a default size
-					fieldDef.maxLength = 256;
+					fieldDef.lenAndPrecision = "(256)";
 				}
 				if (null != columnAnnotation) {
 					if (!StringUtils.isNullOrEmpty(columnAnnotation.name()))
 						fieldDef.columnName = columnAnnotation.name();
 					int length = columnAnnotation.length();
-					if (length != -1)
-						fieldDef.maxLength = length;
+					if (length != -1) {
+						int precision = columnAnnotation.precision();
+						if (precision != -1)
+							fieldDef.lenAndPrecision = String.format("(%d,%d)", length, precision);
+						else
+							fieldDef.lenAndPrecision = String.format("(%d)", length);
+					}
 					fieldDef.unique = columnAnnotation.unique();
 					fieldDef.notNull = columnAnnotation.notNull();
 				}
@@ -354,29 +356,29 @@ class TableDefinition<T> {
 						primaryKeyColumnNames = new ArrayList<>();
 					fieldDef.isPrimaryKey = true;
 					primaryKeyColumnNames.add(fieldDef);
-					this.genType = pkAnnotation.generatorType();
-					if (this.genType != null){
+					fieldDef.genType = pkAnnotation.generatorType();
+					if (fieldDef.genType != null){
 						// check if allowed
 						if (this.primaryKeyColumnNames.size() > 1){
 							throw new EzquError("Too many primary keys with an auto increment field. Using an auto increment " +
 									"field requires a single column primary key. For uniqueness consider unique indexs in your table");
 						}
-						if (genType == GeneratorType.IDENTITY)
+						if (fieldDef.genType == GeneratorType.IDENTITY)
 							fieldDef.dataType = dialect.getIdentityType();
-						else if (this.genType == GeneratorType.SEQUENCE) {
+						else if (fieldDef.genType == GeneratorType.SEQUENCE) {
 							if (pkAnnotation.seqName() == null)
 								throw new EzquError("IllegalArgument - GeneratorType.SEQUENCE must supply a sequence name!!!");
-							this.sequenceQuery = db.factory.getDialect().getSequenceQuery(pkAnnotation.seqName());
+							fieldDef.sequenceQuery = db.factory.getDialect().getSequenceQuery(pkAnnotation.seqName());
 						}
 					}
 				}
 				Generated genAnnotation = f.getAnnotation(Generated.class);
 				if (null != genAnnotation) {
 					fieldDef.genType = genAnnotation.generatorType();
-					if (this.genType != null){
-						if (genType == GeneratorType.IDENTITY)
+					if (fieldDef.genType != null) {
+						if (fieldDef.genType == GeneratorType.IDENTITY)
 							fieldDef.dataType = dialect.getIdentityType();
-						else if (this.genType == GeneratorType.SEQUENCE) {
+						else if (fieldDef.genType == GeneratorType.SEQUENCE) {
 							if (null == genAnnotation.seqName())
 								throw new EzquError("IllegalArgument - GeneratorType.SEQUENCE must supply a sequence name!!!");
 							fieldDef.sequenceQuery = db.factory.getDialect().getSequenceQuery(genAnnotation.seqName());
@@ -508,7 +510,7 @@ class TableDefinition<T> {
 				for (FieldDefinition innerDef : def.fields) {
 					if (innerDef.isPrimaryKey) {
 						fdef.dataType = getDataType(innerDef.field.getType());
-						fdef.maxLength = innerDef.maxLength;
+						fdef.lenAndPrecision = innerDef.lenAndPrecision;
 						break;
 					}
 				}				
@@ -601,22 +603,23 @@ class TableDefinition<T> {
 
 		FieldDefinition identityField = null;
 		for (FieldDefinition field : fields) {
-			if (null == field.getValue(obj) && (GeneratorType.IDENTITY == field.genType || (field.isPrimaryKey && GeneratorType.IDENTITY == genType))) {
-				// only one identity field can exist, usually it is the pk
-				if (null != identityField) {
-					String msg = String.format("Error you can not have two identity fields in a row [%s, %s]", identityField.field.getName(), field.field.getName());
-					StatementLogger.error(msg);
-					throw new EzquError(msg, obj.getClass());
-				}
-				identityField = field;
-				// skip identity types because these are auto incremented
-				continue;
-			}
-			if (field.isExtension || field.isSilent || (field.fieldType != FieldType.NORMAL))
+			if (field.isExtension || field.isSilent || field.fieldType != FieldType.NORMAL)
         		// skip everything which is not a plain field (i.e any type of relationship)
         		// its value will be handled in the following update statement
         		continue;
-
+			if (null == field.getValue(obj)) {
+				if (field.notNull)
+					throw new EzquError("field [%s] is marked a non null and was null", field.field.getName());
+				if (GeneratorType.IDENTITY == field.genType) {
+					// only one identity field can exist, usually it is the pk
+					if (null != identityField)
+						throw new EzquError("Error you can not have two identity fields in a row [%s, %s]", identityField.field.getName(), field.field.getName());
+					
+					identityField = field;
+					// skip identity types because these are auto incremented
+					continue;
+				}
+			}
         	if (field.isVersion) {
         		field.field.setAccessible(true);
         		try {
@@ -709,6 +712,8 @@ class TableDefinition<T> {
 			if (field.isExtension)
 				continue;
 			if (!field.isPrimaryKey) {
+				if (field.notNull && null == field.getValue(obj))
+					throw new EzquError("field [%s] is marked a non null and was null", field.field.getName());
 				if (null != field.field.getAnnotation(Lazy.class)) {
 					try {
 						Object value = field.getValue(obj);
@@ -879,10 +884,16 @@ class TableDefinition<T> {
 		StringJoiner sj = new StringJoiner(", ");
 		for (FieldDefinition field : fields) {
 			if (!field.isSilent && !field.isExtension) {
-				String typeDef = field.columnName + " " + field.dataType;
-				if (field.genType == GeneratorType.NONE && field.maxLength != 0) {
-					typeDef += "(" + field.maxLength + ")";
+				String typeDef = field.columnName + " ";
+				if (field.genType == GeneratorType.NONE && null != field.lenAndPrecision) {					
+					typeDef += StringUtils.replaceOrAppend(Constants.LENGTH_AND_PRECISION, field.dataType, field.lenAndPrecision);
 				}
+				else
+					typeDef += field.dataType;
+				if (field.unique)
+					typeDef += " UNIQUE ";
+				if (field.notNull)
+					typeDef += " NOT NULL ";
 				sj.add(typeDef);
 			}
 		}
@@ -927,7 +938,13 @@ class TableDefinition<T> {
 			// 1. get the primaryKey value, 2. check if we have an object with such value in cache, 3. if so return it
 			// if not continue.			
 			for (FieldDefinition def: primaryKeyColumnNames) {
-				Object key = def.read(rs, dialect);
+				Object key = null;
+				try {
+					key = def.read(rs, dialect);
+				}
+				catch (SQLException sqle) {
+					throw new EzquError(sqle, sqle.getMessage());
+				}
 				Object o = db.multiCallCache.checkReEntrent(clazz, key);
 				if (null == o)
 					o = db.reEntrantCache.checkReEntrent(clazz, key);
@@ -1023,10 +1040,6 @@ class TableDefinition<T> {
 		}
 		return false;
 	}
-
-	GeneratorType getGenerationtype() {
-		return this.genType;
-	}
 	
 	/*
 	 * get the most "forward" "Intercepter Annotation" in the hierarchy tree.
@@ -1045,7 +1058,7 @@ class TableDefinition<T> {
 			 if (null != columnAnnotation && Types.ENUM_INT == columnAnnotation.enumType()) {
 				 fieldDef.type = Types.ENUM_INT;
 				 fieldDef.dataType = dialect.getDataType(Integer.class);
-				 fieldDef.maxLength = 0; // make sure that integer type does not get a length value when creating tables
+				 fieldDef.lenAndPrecision = null; // make sure that integer type does not get a length value when creating tables
 			 }
 			 else {
 				 fieldDef.dataType = dialect.getDataType(String.class);
@@ -1181,8 +1194,8 @@ class TableDefinition<T> {
 		// Deal with null primary keys (if object is sequence do a sequence query and update object... if identity you need to query the
 		// object on the way out).
 		if (field.isPrimaryKey && null == value) {
-			if (genType == GeneratorType.SEQUENCE) {
-				value = db.executeQuery(sequenceQuery, rs -> {
+			if (field.genType == GeneratorType.SEQUENCE) {
+				value = db.executeQuery(field.sequenceQuery, rs -> {
 					if (rs.next()) {
 						return rs.getLong(1);
 					}
@@ -1194,8 +1207,8 @@ class TableDefinition<T> {
 				catch (Exception e) {
 					throw new EzquError(e, e.getMessage());
 				}
-			 }
-			else if (genType == GeneratorType.UUID || UUID.class.isAssignableFrom(field.field.getType())) {
+			}
+			else if (field.genType == GeneratorType.UUID || UUID.class.isAssignableFrom(field.field.getType())) {
 				try {
 					UUID pk = UUID.randomUUID();
 					// add the new id to the object
@@ -1298,7 +1311,7 @@ class TableDefinition<T> {
 							}
 						}
 						catch (IllegalArgumentException | IllegalAccessException e) {
-							StatementLogger.log("Unable to set Jaqu Collection on field " + field.field.getName());
+							StatementLogger.log("Unable to set Ezqu Collection on field " + field.field.getName());
 						}
 					}
 				}
@@ -1379,10 +1392,10 @@ class TableDefinition<T> {
 			try {
 				o = def.read(rs, dialect);
 			}
-			catch (EzquError sqle) {
+			catch (SQLException sqle) {
 				if (def.isExtension)
 					return;
-				throw sqle;
+				throw new EzquError(sqle, sqle.getMessage());
 			}
 			Converter converter = def.field.getAnnotation(Converter.class);
 			if (null != converter) {				
@@ -1420,7 +1433,7 @@ class TableDefinition<T> {
 			if (dialect.checkTableExists(joinTableName, db))
 				return;
 			FieldDefinition myPkDef = this.getPrimaryKeyFields().get(0);
-			String myPkLength = myPkDef.maxLength != 0 ? "(" + myPkDef.maxLength + ")" : "";
+			String myPkLength = null != myPkDef.lenAndPrecision ? myPkDef.lenAndPrecision : "";
 
 			// Locate the pk field of the target relation
 			Field[] lFields = getAllFields(childType);

@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * 
+ * 
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -129,9 +129,6 @@ public class EzquClassAdapter extends ClassVisitor implements Opcodes {
 		return new EzquFieldVisitor(Opcodes.ASM9, super.visitField(access, name, desc, signature, value), name.toLowerCase(), relationFields, lazyLoadFields, abstractFields);
 	}
 	
-	/* (non-Javadoc)
-	 * @see org.objectweb.asm.ClassAdapter#visitEnd()
-	 */
 	@Override
 	public void visitEnd() {
 		if (!isInherited && (isEntityAnnotationPresent || isMappedSupperClass)) {
@@ -446,9 +443,9 @@ public class EzquClassAdapter extends ClassVisitor implements Opcodes {
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitFieldInsn(GETFIELD, className, "db", LCOM_CENTIMIA_ORM_EZQU_DB);
 		mv.visitVarInsn(ALOAD, 9);
-		mv.visitMethodInsn(INVOKEVIRTUAL, COM_CENTIMIA_ORM_EZQU_DB, "from", "(Ljava/lang/Object;)Lcom/centimia/orm/ezqu/QueryInterface;", false);
+		mv.visitMethodInsn(INVOKEVIRTUAL, COM_CENTIMIA_ORM_EZQU_DB, "from", "(Ljava/lang/Object;)Lcom/centimia/orm/ezqu/Query;", false);
 		mv.visitVarInsn(ALOAD, 1);
-		mv.visitMethodInsn(INVOKEINTERFACE, "com/centimia/orm/ezqu/QueryInterface", "innerJoin", "(Ljava/lang/Object;)Lcom/centimia/orm/ezqu/QueryJoin;", true);
+		mv.visitMethodInsn(INVOKEVIRTUAL, "com/centimia/orm/ezqu/Query", "innerJoin", "(Ljava/lang/Object;)Lcom/centimia/orm/ezqu/QueryJoin;", false);
 		mv.visitVarInsn(ALOAD, 1);
 		mv.visitFieldInsn(GETFIELD, className, fieldName, fieldSignature);
 		mv.visitMethodInsn(INVOKEVIRTUAL, "com/centimia/orm/ezqu/QueryJoin", "on", "(Ljava/lang/Object;)Lcom/centimia/orm/ezqu/QueryJoinCondition;", false);

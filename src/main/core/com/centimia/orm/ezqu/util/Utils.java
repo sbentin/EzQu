@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu.util;
 
@@ -184,7 +182,7 @@ public class Utils {
 					}
 				}
 			}
-			throw new EzquError("Exception trying to create " + clazz.getName() + ": " + e, e);
+			throw new EzquError(e, "Exception trying to create %s: %s", clazz.getName(), e.getMessage());
 		}
 	}
 
@@ -209,7 +207,7 @@ public class Utils {
 				e.printStackTrace();
 			}
 		}
-		throw new EzquError(clazz.getName() + ": is not an enum type"); 
+		throw new EzquError("%s: is not an enum type", clazz.getName()); 
 	}
 	
 	/**
@@ -245,7 +243,7 @@ public class Utils {
 					return IOUtils.readStringAndClose(r, -1);
 				}
 				catch (Exception e) {
-					throw new EzquError("Error converting CLOB to String: " + e.toString(), e);
+					throw new EzquError(e, "Error converting CLOB to String: %s", e.getMessage());
 				}
 			}
 			return o.toString();

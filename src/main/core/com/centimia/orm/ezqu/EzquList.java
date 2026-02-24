@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -39,7 +37,7 @@ class EzquList<E> extends AbstractEzquCollection<E> implements List<E> {
 
 	private static final long	serialVersionUID	= -4977190877509050721L;
 	protected transient int modCount = 0;
-
+	
 	public EzquList(List<E> origList, Db db, FieldDefinition definition, Object parentPk) {
 		super(origList, db, definition, parentPk);
 	}

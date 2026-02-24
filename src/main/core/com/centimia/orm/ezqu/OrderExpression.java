@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
@@ -32,44 +30,6 @@ class OrderExpression<T> {
         this.nullsLast = nullsLast;
     }
 
-//	void appendSQL(SQLStatement stat) {
-//		if (1 >= query.getDb().factory.dialect.ordinal()) {
-//			// case when the dialect is H2, ORACLE
-//			query.appendSQL(stat, expression, false, null);			
-//			if (desc) {
-//				stat.appendSQL(" DESC");
-//				// default null ordering in descending is null last so we only need to check null first
-//				if (nullsFirst) {
-//					stat.appendSQL(" NULLS FIRST");
-//				}
-//			}
-//			else {
-//				stat.appendSQL(" ASC");
-//				// default null ordering in ascending is null first so we only need to check null last
-//				if (nullsLast) {
-//					stat.appendSQL(" NULLS LAST");
-//				}
-//			}
-//		}
-//		else {
-//			// the others will use something a bit more complex. (CASE WHEN ate.user_id IS NULL THEN 0 ELSE 1 END)
-//			if (desc) {
-//				if (nullsFirst)
-//					stat.appendSQL("(CASE WHEN " + expression + " IS NULL THEN 0 ELSE 1 END), ");
-//
-//				query.appendSQL(stat, expression, false, null);
-//				stat.appendSQL(" DESC");
-//			}
-//			else {
-//				if (nullsLast)
-//					stat.appendSQL("(CASE WHEN " + expression + " IS NULL THEN 0 ELSE 1 END) DESC, ");
-//
-//				query.appendSQL(stat, expression, false, null);
-//				stat.appendSQL(" ASC");
-//			}
-//		}
-//	}
-	
 	void appendSQL(SQLStatement stat) {
 	    boolean simpleDialect = query.getDb().factory.dialect.ordinal() <= 1;
 	    

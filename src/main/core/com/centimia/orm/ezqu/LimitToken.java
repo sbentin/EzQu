@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Shai Bentin & Centimia Inc..
+ * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
@@ -24,11 +24,8 @@ public class LimitToken implements Token {
 	}
 
 	@Override
-	public void appendSQL(SQLStatement stat, Query<?> query) {		
-		if (Dialect.ORACLE == query.getDb().factory.getDialect())
-			stat.appendSQL("FETCH FIRST " + limit + " ROWS ONLY");
-		else
-			stat.appendSQL("limit " + limit);
+	public void appendSQL(SQLStatement stat, Query<?> query) {
+		stat.appendSQL(query.getDb().factory.getDialect().theDialect.limitQuery(limit));
 	}
 
 }

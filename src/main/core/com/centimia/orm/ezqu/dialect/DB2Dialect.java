@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -20,15 +18,16 @@
  */
 package com.centimia.orm.ezqu.dialect;
 
+import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 
 import com.centimia.core.ExceptionMessages;
 import com.centimia.core.exception.ResourceDeadLockException;
 import com.centimia.orm.ezqu.Db;
 import com.centimia.orm.ezqu.EzquError;
 import com.centimia.orm.ezqu.SQLDialect;
-import com.centimia.orm.ezqu.Types;
 import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
@@ -51,8 +50,6 @@ public class DB2Dialect implements SQLDialect {
 	
 	@Override
 	public String getDataType(Class<?> fieldClass) {
-		final String VARCHAR = "VARCHAR";
-		final String TIMESTAMP = "TIMESTAMP";
 		final String SMALLINT = "SMALLINT";
 		
 		if (fieldClass == Integer.class) {
@@ -67,14 +64,17 @@ public class DB2Dialect implements SQLDialect {
 		else if (fieldClass == java.math.BigDecimal.class) {
 			return "DECIMAL(38,15)";
 		}
+		else if (fieldClass == java.math.BigInteger.class) {
+			return "DECIMAL(65,0)";
+		}
 		else if (fieldClass == java.util.Date.class) {
 			return TIMESTAMP;
 		}
 		else if (fieldClass == java.sql.Date.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.time.LocalDate.class) {
-			return "DATE";
+			return DATE;
 		}
 		else if (fieldClass == java.time.LocalDateTime.class) {
 			return TIMESTAMP;
@@ -83,10 +83,10 @@ public class DB2Dialect implements SQLDialect {
 			return TIMESTAMP;
 		}
 		else if (fieldClass == java.time.LocalTime.class) {
-			return "TIME";
+			return TIME;
 		}
 		else if (fieldClass == java.sql.Time.class) {
-			return "TIME";
+			return TIME;
 		}
 		else if (fieldClass == java.sql.Timestamp.class) {
 			return TIMESTAMP;
@@ -107,7 +107,7 @@ public class DB2Dialect implements SQLDialect {
 			return "REAL";
 		}
 		else if (fieldClass == java.sql.Blob.class) {
-			return "BLOB";
+			return BLOB;
 		}
 		else if (fieldClass == java.sql.Clob.class) {
 			return "CLOB";
@@ -117,44 +117,17 @@ public class DB2Dialect implements SQLDialect {
 			Class<?> componentClass = fieldClass.getComponentType();
 			if (null != componentClass.getAnnotation(Entity.class) || null != componentClass.getAnnotation(MappedSuperclass.class))
 				throw new EzquError("IllegalArgument - Array of type 'com.centimia.orm.ezqu.Entity' are relations. Either mark as transient or use a Collection type instead.");
-			return "BLOB";
+			return BLOB;
 		}
 		else if (fieldClass.isEnum()) {
 			return VARCHAR;
 		}
+		else if (null != fieldClass.getInterfaces() && Arrays.stream(fieldClass.getInterfaces()).anyMatch(i -> i == Serializable.class)) {
+			return BLOB;
+		}
 		return VARCHAR;
 	}
 
-	@Override
-	public Object getValueByType(Types type, ResultSet rs, String columnName) throws SQLException {
-		switch (type) {
-			case ENUM: return rs.getString(columnName);
-			case ENUM_INT: return rs.getInt(columnName);
-			case BOOLEAN: return (rs.getObject(columnName) != null) && rs.getBoolean(columnName);
-			case BIGDECIMAL: return rs.getBigDecimal(columnName);
-			case LOCALDATE: return null != rs.getDate(columnName) ? rs.getDate(columnName).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnName) ? rs.getTimestamp(columnName).toLocalDateTime() : null; // TODO this should be fixed
-    		case LOCALTIME: return null != rs.getTime(columnName) ? null != rs.getTime(columnName).toLocalTime() : null;
-			default: return rs.getObject(columnName);
-		}
-	}
-
-	@Override
-	public Object getValueByType(Types type, ResultSet rs, int columnNumber) throws SQLException {
-		switch (type) {
-			case ENUM: return rs.getString(columnNumber);
-			case ENUM_INT: return rs.getInt(columnNumber);
-			case BOOLEAN: return (rs.getObject(columnNumber) != null) && rs.getBoolean(columnNumber);
-			case BIGDECIMAL: return rs.getBigDecimal(columnNumber);
-			case LOCALDATE: return null != rs.getDate(columnNumber) ? rs.getDate(columnNumber).toLocalDate() : null;
-    		case LOCALDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null;
-    		case ZONEDDATETIME: return null != rs.getTimestamp(columnNumber) ? rs.getTimestamp(columnNumber).toLocalDateTime() : null; // TODO this should be fixed
-    		case LOCALTIME: return null != rs.getTime(columnNumber) ? null != rs.getTime(columnNumber).toLocalTime() : null;
-			default: return rs.getObject(columnNumber);
-		}
-	}
-	
 	@Override
 	public String getIdentityType() {
 		return "BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1, NO CACHE)";
@@ -168,10 +141,10 @@ public class DB2Dialect implements SQLDialect {
 	
 	@Override
 	public String getFunction(Functions functionName) {
-		if (Functions.IFNULL == functionName){
-			return "COALESCE";
-		}
-		return null;
+		return switch (functionName) {
+			case IFNULL -> "COALESCE";
+			default -> "";
+		};
 	}
 
 	@Override

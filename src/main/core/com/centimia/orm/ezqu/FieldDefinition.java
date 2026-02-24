@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
+ * All rights reserved.  Unpublished -- rights reserved
+ *
+ * Use of a copyright notice is precautionary only, and does
+ * not imply publication or disclosure.
+ *
+ * THIS SOFTWARE CONTAINS CONFIDENTIAL INFORMATION AND TRADE
+ * SECRETS OF Shai Bentin USE, DISCLOSURE, OR
+ * REPRODUCTION IS PROHIBITED WITHOUT THE PRIOR EXPRESS
+ * WRITTEN PERMISSION OF Shai Bentin & CENTIMIA, INC.
+ */
 package com.centimia.orm.ezqu;
 
 import java.lang.reflect.Field;
@@ -24,12 +36,12 @@ import com.centimia.orm.ezqu.util.Utils;
  * The meta data of a field.
  */
 class FieldDefinition implements Comparable<FieldDefinition> {
-	private static final String OBJECT_VALUE = "[Object: %s], [value: %s]\t";
+	private static final String OBJECT_VALUE = "[Object: %s], [value: %s]\t%s";
 	
 	String columnName;
 	Field field;
 	String dataType;
-	int maxLength = 0;
+	String lenAndPrecision = null;
 	boolean isPrimaryKey;
 	FieldType fieldType = FieldType.NORMAL;
 	RelationDefinition relationDefinition;
@@ -85,8 +97,7 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 				catch (IllegalArgumentException | IllegalAccessException e) {
 					String objectString = (null == obj) ? "null" : obj.getClass().getName();
 					String valueString = newEnum.toString();
-					String msg = String.format(OBJECT_VALUE, objectString, valueString);
-					throw new EzquError(e, msg + e.getMessage());
+					throw new EzquError(e, OBJECT_VALUE, objectString, valueString, e.getMessage());
 				}
 				return newEnum;
 			}
@@ -99,8 +110,7 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 				catch (IllegalArgumentException | IllegalAccessException e) {
 					String objectString = (null == obj) ? "null" : obj.getClass().getName();
 					String valueString = sUUID.toString();
-					String msg = String.format(OBJECT_VALUE, objectString, valueString);
-					throw new EzquError(e, msg + e.getMessage());
+					throw new EzquError(e, OBJECT_VALUE, objectString, valueString, e.getMessage());
 				}
 			}
 			case FK: {
@@ -340,20 +350,16 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 			}
 		}
 		catch (Exception e) {
+			if (e instanceof EzquError eqe)
+				throw eqe;
 			String objectString = (null == objToSet) ? "null" : objToSet.getClass().getName();
 			String valueString = (null == fieldValueFromDb) ? null : fieldValueFromDb.toString();
-			String msg = String.format(OBJECT_VALUE, objectString, valueString);
-			throw new EzquError(e, msg + e.getMessage());
+			throw new EzquError(e, OBJECT_VALUE, objectString, valueString, e.getMessage());
 		}
 	}
 
-	Object read(ResultSet rs, Dialect dialect) {
-		try {
-			return dialect.getValueByType(type, rs, this.columnName);
-		}
-		catch (SQLException e) {
-			throw new EzquError(e, e.getMessage());
-		}
+	Object read(ResultSet rs, Dialect dialect) throws SQLException {
+		return dialect.getValueByType(type, rs, this.columnName);
 	}
 
 	@Override

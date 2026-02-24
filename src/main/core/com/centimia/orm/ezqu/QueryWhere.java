@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 package com.centimia.orm.ezqu;
 
@@ -81,6 +79,71 @@ public class QueryWhere<T> {
 		return new QueryCondition<>(query, mask, mask.mask());
 	}
 
+	/**
+	 * a "where exists" clause. Adds "WHERE EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> whereExists(QueryWhere<?> subQuery) {
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "where not exists" clause. Adds "WHERE NOT EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> whereNotExists(QueryWhere<?> subQuery) {
+		query.addConditionToken((s, q) -> s.appendSQL("NOT"));
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "and exists" clause. Adds "AND EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> andExists(QueryWhere<?> subQuery) {
+		query.addConditionToken(ConditionAndOr.AND);
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "or exists" clause. Adds "OR EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> orExists(QueryWhere<?> subQuery) {
+		query.addConditionToken(ConditionAndOr.OR);
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "and not exists" clause. Adds "AND NOT EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> andNotExists(QueryWhere<?> subQuery) {
+		query.addConditionToken((s, q) -> s.appendSQL("AND NOT"));
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
+	/**
+	 * a "or not exists" clause. Adds "OR NOT EXISTS (subQuery)" to the query
+	 * @param subQuery
+	 * @return QueryWhere&lt;T&gt;
+	 */
+	public QueryWhere<T> orNotExists(QueryWhere<?> subQuery) {
+		query.addConditionToken((s, q) -> s.appendSQL("OR NOT"));
+		query.addConditionToken(new ExistsToken(subQuery));
+		return this;
+	}
+	
 	/**
 	 * Create a having clause based on the column given.
 	 * <b>You can only use a single having in a select clause</b>
@@ -169,6 +232,40 @@ public class QueryWhere<T> {
 		return query.getDistinctSQL(z);
 	}
 
+	/**
+	 * Returns the SQL String to be performed. Use for Debug.
+	 * @return String
+	 */
+	public String logSQL() {
+		return query.logSQL();
+	}
+
+	/**
+	 * @see Query#logDistinctSQL()
+	 * @return String
+	 */
+	public String logDistinctSQL() {
+		return query.logDistinctSQL();
+	}
+
+	/**
+	 * @see Query#logSQL(Object)
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logSQL(Z z) {
+		return query.logSQL(z);
+	}
+
+	/**
+	 * @see Query#logDistinctSQL(Object)
+	 * @param z
+	 * @return String
+	 */
+	public <Z> String logDistinctSQL(Z z) {
+		return query.logDistinctSQL(z);
+	}
+	
 	/**
 	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
 	 * this query is runs a union query of the two queries.<br>
@@ -466,9 +563,9 @@ public class QueryWhere<T> {
 	 * Group By ordered objects
 	 * 
 	 * @param groupBy
-	 * @return QueryInterface&lt;T&gt;
+	 * @return Query&lt;T&gt;
 	 */
-	public QueryInterface<T> groupBy(Object ... groupBy){
+	public Query<T> groupBy(Object ... groupBy){
 		return query.groupBy(groupBy);
 	}
 
@@ -476,9 +573,9 @@ public class QueryWhere<T> {
 	 * adds a limit to the query
 	 * 
 	 * @param limitNum
-	 * @return QueryInterface&lt;T&gt;
+	 * @return Query&lt;T&gt;
 	 */
-	public QueryInterface<T> limit(int limitNum) {
+	public Query<T> limit(int limitNum) {
 		return query.limit(limitNum);
 	}
 

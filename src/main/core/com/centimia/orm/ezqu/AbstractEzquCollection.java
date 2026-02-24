@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -22,6 +20,7 @@ package com.centimia.orm.ezqu;
 
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -389,6 +388,11 @@ abstract class AbstractEzquCollection<E> implements Serializable, IEzquCollectio
 		internalDeleteMapping = null;
 	}
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Object writeReplace() {
+        return new EzquDataProxy(this.originalList, this.internalDeleteMapping, this.getClass());
+    }
+	
 	/**
      * Deletes the child relation if the entity has changed or been removed.
      *
@@ -408,4 +412,43 @@ abstract class AbstractEzquCollection<E> implements Serializable, IEzquCollectio
 				dbRef.deleteChildRelation(definition, oldValue, parentPk);
 		}
 	}
+	
+	public static class EzquDataProxy<E> implements Serializable {
+		private static final long serialVersionUID = 3010087149659589428L;
+		
+		private final Class<? extends AbstractEzquCollection<E>> collectionClass;
+        private final Collection<E> list;
+        private final Map<E, E> map;
+
+        public EzquDataProxy(Collection<E> list, Map<E, E> map, Class<? extends AbstractEzquCollection<E>> collectionClass) {
+            this.list = list;
+            this.map = map;
+            this.collectionClass = collectionClass;
+        }
+
+        // readResolve: Reconstructs the package-private object
+        private Object readResolve() {
+        	try {
+        		Constructor<? extends AbstractEzquCollection<E>> c;
+        		if (List.class.isAssignableFrom(collectionClass)) {
+        			c = collectionClass.getConstructor(List.class, Db.class, FieldDefinition.class, Object.class);
+        		}
+        		else if (Set.class.isAssignableFrom(collectionClass)) {
+					c = collectionClass.getConstructor(Set.class, Db.class, FieldDefinition.class, Object.class);
+				}
+				else {
+					throw new RuntimeException("Unsupported EzquCollection type: " + collectionClass.getName());
+				}
+	        	
+	        	c.setAccessible(true);
+	        	AbstractEzquCollection<E> coll = c.newInstance(list, null, null, null);
+	            coll.internalDeleteMapping = map;
+	            c.setAccessible(false);
+	            return coll;
+        	}
+        	catch (Exception ex) {
+				throw new RuntimeException("Failed to deserialize EzquCollection", ex);
+			}
+        }
+    }
 }

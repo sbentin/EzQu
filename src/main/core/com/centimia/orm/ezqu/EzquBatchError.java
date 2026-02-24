@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024 Shai Bentin & Centimia Inc..
+ * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
@@ -33,10 +33,10 @@ public class EzquBatchError extends RuntimeException {
 	 * You can do the following:
 	 * <pre>
 	 * int i = 0;
-	 * for (int count: jaquBatchError.getBatchException().getUpdateCounts()) {
+	 * for (int count: ezquBatchError.getBatchException().getUpdateCounts()) {
 	 *    // process count
 	 *    if (count == Statement.EXECUTE_FAILED) {
-	 *    	// handle failed update with index i (remember to adjust for batch size and batch number using jaquBatchError.getBatchCount())
+	 *    	// handle failed update with index i (remember to adjust for batch size and batch number using ezquBatchError.getBatchCount())
 	 *    }
 	 *    i++;
 	 * }

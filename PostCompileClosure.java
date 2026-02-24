@@ -1,14 +1,12 @@
 /*
- * Copyright (c) 2007-2010 Centimia Ltd.
+ * Copyright (c) 2025-2030 Centimia Ltd.
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
  * not imply publication or disclosure.
  *  
- * Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 2.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group, Centimia Inc.
+ * Licensed under Eclipse Public License, Version 2.0,
+ * Initial Developer: Shai Bentin, Centimia Ltd.
  */
 
 /*
@@ -24,7 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.gradle.api.Task;
-import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.file.FileCollection;
 
 import com.centimia.orm.ezqu.ext.common.BuildStats;
 import com.centimia.orm.ezqu.ext.common.CommonAssembly;
@@ -36,10 +34,13 @@ import groovy.lang.Closure;
  * @author shai
  */
 public class PostCompileClosure extends Closure<String> {
-	private static final long	serialVersionUID	= -467576318569482194L;
-
-	public PostCompileClosure(Object owner) {
+	private static final long serialVersionUID = -467576318569482194L;
+	
+	private final FileCollection defaultOutputDirs;
+	
+	public PostCompileClosure(Object owner, FileCollection fc) {
 		super(owner);
+		defaultOutputDirs = fc;
 	}
 	
 	@Override
@@ -49,13 +50,13 @@ public class PostCompileClosure extends Closure<String> {
 		
 		Set<File> outputDirs = null;
 		if (null == location.outputDir) {
-			JavaPluginExtension javaConvention = postCompileTask.getProject().getExtensions().getByType(JavaPluginExtension.class);
-			outputDirs = javaConvention.getSourceSets().findByName("main").getOutput().getClassesDirs().getFiles();
-		}
+            // Use the injected file collection
+            outputDirs = defaultOutputDirs.getFiles();
+        }
 		else {
-			outputDirs = new HashSet<>();
-			outputDirs.add(new File(location.outputDir));
-		}
+            outputDirs = new HashSet<>();
+            outputDirs.add(new File(location.outputDir));
+        }
 		for (File outputDir: outputDirs) {
 			if (!outputDir.exists()) {
 				postCompileTask.getLogger().error("Post Compile for Output dir {} failed directory does not exist!!!", outputDir.getAbsolutePath());
