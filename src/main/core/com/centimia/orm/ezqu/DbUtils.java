@@ -21,6 +21,7 @@ import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.StringJoiner;
@@ -39,9 +40,9 @@ import com.centimia.orm.ezqu.util.Utils;
 public class DbUtils {
 
 	private final Db	db;
-	private final HashMap<Class<?>, PreparedStatement> insertStatements = new HashMap<>();
-	private final HashMap<Class<?>, PreparedStatement> updateStatements = new HashMap<>();
-	private final HashMap<Class<?>, PreparedStatement> deleteStatements = new HashMap<>();
+	private final HashMap<Class<?>, StatementWithCount> insertStatements = new HashMap<>();
+	private final HashMap<Class<?>, StatementWithCount> updateStatements = new HashMap<>();
+	private final HashMap<Class<?>, StatementWithCount> deleteStatements = new HashMap<>();
 
 	DbUtils(Db db) {
 		this.db = db;
@@ -115,15 +116,21 @@ public class DbUtils {
      * @param clazz
      * @param type
      * @parm externalizePk - if true utils assumes the PK is injected by the user externally even if the PK is Identity type
-     * @return {@link PreparedStatement}
+     * @return {@link PreparedStatement} or null if the statement type is not supported or if the update statement is requested but all fields are relationships (hence there is nothing to update).
      */
     public <T> PreparedStatement getPreparedStatement(Class<T> clazz, StatementType type, boolean externalizePk) {
     	if (null == clazz || null == type)
     		return null;
     	switch (type) {
-    		case INSERT: return getPreparedInsertStatement(clazz, externalizePk);
-    		case UPDATE: return getPreparedUpdateStatement(clazz);
-    		case DELETE: return getPreparedDeleteStatement(clazz);
+    		case INSERT: return getPreparedInsertStatement(clazz, externalizePk).ps;
+    		case UPDATE: {
+    			StatementWithCount swc = getPreparedUpdateStatement(clazz);
+    			if (null != swc)
+					return swc.ps;
+				else
+					return null;
+    		}
+    		case DELETE: return getPreparedDeleteStatement(clazz).ps;
     		default : return null;
     	}
     }
@@ -153,9 +160,9 @@ public class DbUtils {
     	if (null == obj || null == type)
     		return null;
     	switch (type) {
-    		case INSERT: return prepareInsertStatement(obj, externalizePk);
-    		case UPDATE: return prepareUpdateStatement(obj);
-    		case DELETE: return prepareDeleteStatement(obj);
+    		case INSERT: return prepareInsertStatement(obj, externalizePk).ps;
+    		case UPDATE: return prepareUpdateStatement(obj).ps;
+    		case DELETE: return prepareDeleteStatement(obj).ps;
     		default : return null;
     	}
     }
@@ -164,39 +171,37 @@ public class DbUtils {
      * Adds the object into the batch of executions. If the preparedStatement does not yet exist it will be created.
      * @param obj
      * @param type
-     * @return {@link PreparedStatement}
      */
-    public <T> PreparedStatement addBatch(T obj, StatementType type) {
-    	return addBatch(obj, type, false);
+    public <T> void addBatch(T obj, StatementType type) {
+    	addBatch(obj, type, false);
     }
 
     /**
      * Adds the object into the batch of executions. If the preparedStatement does not yet exist it will be created.
+     * 
      * @param obj
      * @param type
      * @param externalizePk - if true utils assumes the PK is injected by the user externally even if the PK is Identity type
-     * @return {@link PreparedStatement}
      */
-    public <T> PreparedStatement addBatch(T obj, StatementType type, boolean externalizePk) {
+    public <T> void addBatch(T obj, StatementType type, boolean externalizePk) {
     	if (null == obj || null == type)
-    		return null;
-    	PreparedStatement ps;
+    		return;
+    	StatementWithCount swc;
     	switch (type) {
-    		case INSERT: ps = prepareInsertStatement(obj, externalizePk); break;
-    		case UPDATE: ps = prepareUpdateStatement(obj); break;
-    		case DELETE: ps = prepareDeleteStatement(obj); break;
-    		default : ps = null; break;
+    		case INSERT: swc = prepareInsertStatement(obj, externalizePk); break;
+    		case UPDATE: swc = prepareUpdateStatement(obj); break;
+    		case DELETE: swc = prepareDeleteStatement(obj); break;
+    		default : swc = null; break;
     	}
 
-    	if (null != ps) {
+    	if (null != swc) {
     		try {
-				ps.addBatch();
+				swc.ps.addBatch();
 			}
 			catch (SQLException e) {
-				ps = null;
+				throw new EzquError(e, e.getMessage());
 			}
     	}
-    	return ps;
     }
 
     /**
@@ -227,7 +232,7 @@ public class DbUtils {
     public <T> int[] executeBatch(Class<T> clazz, StatementType type) {
     	if (null == clazz)
     		return new int[0];
-    	PreparedStatement ps;
+    	StatementWithCount ps;
     	switch (type) {
     		case INSERT: ps = insertStatements.get(clazz); break;
     		case UPDATE: ps = updateStatements.get(clazz); break;
@@ -239,44 +244,153 @@ public class DbUtils {
     		return new int[0];
 
     	try {
-			return ps.executeBatch();
+			return ps.ps.executeBatch();
 		}
 		catch (SQLException e) {
+			if (e instanceof java.sql.BatchUpdateException bue) {
+				// this means that the batch failed on a technical issue. 
+				// We return an array with -100 for the batch that failed and all other batches 
+				// that were not executed because of this failure.
+				int[] updateCounts = bue.getUpdateCounts();
+				int[] result = new int[ps.count];
+				Arrays.fill(result, -100);
+				
+				for (int i = 0; i < updateCounts.length; i++) {
+					if (updateCounts[i] != java.sql.Statement.EXECUTE_FAILED) {
+						result[i] = updateCounts[i];
+					}
+				}
+				return result;
+			}
 			return new int[0];
 		}
     }
 
+    /*
+     * prepares the insertStatement for this object with data from the given object
+     */
+     @SuppressWarnings("unchecked")
+ 	private <T> StatementWithCount prepareInsertStatement(T obj, boolean externalizePk) {
+     	Class<T> tClazz = (Class<T>) obj.getClass();
+     	StatementWithCount swc = insertStatements.get(tClazz);
+     	if (null == swc) {
+     		swc = getPreparedInsertStatement(tClazz, externalizePk);
+     	}
+     	swc.count++;
+ 		TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
+ 		int i = 1;
+ 		for (FieldDefinition field : definition.getFields()) {
+ 			if ((!externalizePk && field.isPrimaryKey && GeneratorType.IDENTITY == field.genType)
+ 					|| field.isSilent || field.isExtension || field.fieldType != FieldType.NORMAL)
+ 				// skip identity types because these are auto incremented
+ 				// skip silent fields because they don't really exist.
+ 				// skip everything which is not a plain field (i.e any type of relationship)
+         		continue;
+
+ 			if (field.fieldType == FieldType.FK) {
+ 				setValue(swc.ps, i, getFkValue(obj, field));
+ 				i++;
+ 			}
+ 			else {
+ 	        	Object value = field.getValue(obj);
+ 	        	setValue(swc.ps, i, value);
+ 	        	i++;
+ 			}
+ 		}
+     	return swc;
+     }
+     
+     /*
+      * prepares the updateStatement for this object with data from the given object
+      */
+     @SuppressWarnings("unchecked")
+	private <T> StatementWithCount prepareUpdateStatement(T obj) {
+		Class<T> tClazz = (Class<T>) obj.getClass();
+		StatementWithCount swc = updateStatements.get(tClazz);
+		if (null == swc) {
+			swc = getPreparedUpdateStatement(tClazz);
+		}
+		swc.count++;
+		TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
+		int i = 1;
+		for (FieldDefinition field : definition.getFields()) {
+			if (field.isExtension)
+				continue;
+			if (!field.isPrimaryKey) {
+				if (field.fieldType == FieldType.FK) {
+					setValue(swc.ps, i, getFkValue(obj, field));
+					i++;
+				}
+				else if (!field.isSilent) {
+					Object value = field.getValue(obj);
+					setValue(swc.ps, i, value);
+					i++;
+				}
+			}
+		}
+
+		for (FieldDefinition field : definition.getPrimaryKeyFields()) {
+			Object value = field.getValue(obj);
+			setValue(swc.ps, i, value);
+			i++;
+		}
+		return swc;
+     }
+     
+     /*
+      * prepares the deleteStatement for this object with data from the given object
+      */
+     @SuppressWarnings("unchecked")
+ 	private <T> StatementWithCount prepareDeleteStatement(T obj) {
+     	Class<T> tClazz = (Class<T>) obj.getClass();
+     	StatementWithCount swc = deleteStatements.get(tClazz);
+     	if (null == swc) {
+     		swc = getPreparedDeleteStatement(tClazz);
+     	}
+     	swc.count++;
+     	TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
+ 		int i = 1;
+ 		for (FieldDefinition field : definition.getPrimaryKeyFields()) {
+ 			Object value = field.getValue(obj);
+         	setValue(swc.ps, i, value);
+         	i++;
+ 		}
+     	return swc;
+     }
+     
     /**
      * Returns an insert preparedStatement for the pojo given. This method always returns the same {@link PreparedStatement} object when running in the same db session.
      * @param clazz
      * @return {@link PreparedStatement}
      */
-    private <T> PreparedStatement getPreparedInsertStatement(Class<T> clazz, boolean externalizePk) {
-    	PreparedStatement ps = insertStatements.get(clazz);
+    private <T> StatementWithCount getPreparedInsertStatement(Class<T> clazz, boolean externalizePk) {
+    	StatementWithCount ps = insertStatements.get(clazz);
     	if (null == ps) {
     		TableDefinition<?> definition = EzquSessionFactory.define(clazz, db);
     		String[] idColumnNames = null != definition.getPrimaryKeyFields() ? definition.getPrimaryKeyFields().stream().map(fd -> fd.columnName).toArray(String[]::new) : new String[0];
-     		ps = db.prepare(getInsertStatement(definition, externalizePk).toString(), idColumnNames);
+     		PreparedStatement prs = db.prepare(getInsertStatement(definition, externalizePk).toString(), idColumnNames);
+     		ps = new StatementWithCount(prs);
      		insertStatements.put(clazz, ps);
     	}
     	return ps;
     }
 
     /**
-     * Returns an update preparedStatement which updates all the fields (accept the primaryKey) for the pojo given. This method always returns the same {@link PreparedStatement}
-     * object when running in the same db session.
+     * Returns an update preparedStatement which updates all the fields (accept the primaryKey) for the pojo given.
+     * This method always returns the same {@link PreparedStatement} object when running in the same db session.
      *
      * @param clazz
      * @return {@link PreparedStatement}
      */
-    private <T> PreparedStatement getPreparedUpdateStatement(Class<T> clazz) {
-    	PreparedStatement ps = updateStatements.get(clazz);
+    private <T> StatementWithCount getPreparedUpdateStatement(Class<T> clazz) {
+    	StatementWithCount ps = updateStatements.get(clazz);
     	if (null == ps) {
     		TableDefinition<?> definition = EzquSessionFactory.define(clazz, db);
     		String[] idColumnNames = null != definition.getPrimaryKeyFields() ? definition.getPrimaryKeyFields().stream().map(fd -> fd.columnName).toArray(String[]::new) : new String[0];
     		StringBuilder builder = getUpdateStatement(definition, clazz);
     		if (null != builder) {
-    			ps = db.prepare(builder.toString(), idColumnNames);
+    			PreparedStatement prs = db.prepare(builder.toString(), idColumnNames);
+    			ps = new StatementWithCount(prs);
     			updateStatements.put(clazz, ps);
     		}
     		else
@@ -292,47 +406,15 @@ public class DbUtils {
      * @param clazz
      * @return {@link PreparedStatement}
      */
-    private <T> PreparedStatement getPreparedDeleteStatement(Class<T> clazz) {
-    	PreparedStatement ps = deleteStatements.get(clazz);
+    private <T> StatementWithCount getPreparedDeleteStatement(Class<T> clazz) {
+    	StatementWithCount ps = deleteStatements.get(clazz);
     	if (null == ps) {
     		TableDefinition<?> definition = EzquSessionFactory.define(clazz, db);
     		String[] idColumnNames = null != definition.getPrimaryKeyFields() ? definition.getPrimaryKeyFields().stream().map(fd -> fd.columnName).toArray(String[]::new) : new String[0];
-   			ps = db.prepare(getDeleteStatement(definition, clazz).toString(), idColumnNames);
+   			PreparedStatement prs = db.prepare(getDeleteStatement(definition, clazz).toString(), idColumnNames);
+   			ps = new StatementWithCount(prs);
     		deleteStatements.put(clazz, ps);
     	}
-    	return ps;
-    }
-
-   /*
-    * prepares the insertStatement for this object with data from the given object
-    */
-    @SuppressWarnings("unchecked")
-	public <T> PreparedStatement prepareInsertStatement(T obj, boolean externalizePk) {
-    	Class<T> tClazz = (Class<T>) obj.getClass();
-    	PreparedStatement ps = insertStatements.get(tClazz);
-    	if (null == ps) {
-    		ps = getPreparedInsertStatement(tClazz, externalizePk);
-    	}
-		TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
-		int i = 1;
-		for (FieldDefinition field : definition.getFields()) {
-			if ((!externalizePk && field.isPrimaryKey && GeneratorType.IDENTITY == field.genType)
-					|| field.isSilent || field.isExtension || field.fieldType != FieldType.NORMAL)
-				// skip identity types because these are auto incremented
-				// skip silent fields because they don't really exist.
-				// skip everything which is not a plain field (i.e any type of relationship)
-        		continue;
-
-			if (field.fieldType == FieldType.FK) {
-				setValue(ps, i, getFkValue(obj, field));
-				i++;
-			}
-			else {
-	        	Object value = field.getValue(obj);
-	        	setValue(ps, i, value);
-	        	i++;
-			}
-		}
     	return ps;
     }
 
@@ -353,62 +435,6 @@ public class DbUtils {
 			return pks.get(0).getValue(value);
 		}
 	}
-
-    /*
-     * prepares the updateStatement for this object with data from the given object
-     */
-    @SuppressWarnings("unchecked")
-	private <T> PreparedStatement prepareUpdateStatement(T obj) {
-    	Class<T> tClazz = (Class<T>) obj.getClass();
-    	PreparedStatement ps = updateStatements.get(tClazz);
-    	if (null == ps) {
-    		ps = getPreparedUpdateStatement(tClazz);
-    	}
-    	TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
-		int i = 1;
-    	for (FieldDefinition field : definition.getFields()) {
-			if (field.isExtension)
-				continue;
-    		if (!field.isPrimaryKey) {
-				if (field.fieldType == FieldType.FK) {
-					setValue(ps, i, getFkValue(obj, field));
-					i++;
-				}
-				else if (!field.isSilent) {
-					Object value = field.getValue(obj);
-		        	setValue(ps, i, value);
-		        	i++;
-				}
-			}
-    	}
-
-		for (FieldDefinition field : definition.getPrimaryKeyFields()) {
-			Object value = field.getValue(obj);
-        	setValue(ps, i, value);
-        	i++;
-		}
-    	return ps;
-    }
-
-    /*
-     * prepares the deleteStatement for this object with data from the given object
-     */
-    @SuppressWarnings("unchecked")
-	private <T> PreparedStatement prepareDeleteStatement(T obj) {
-    	Class<T> tClazz = (Class<T>) obj.getClass();
-    	PreparedStatement ps = deleteStatements.get(tClazz);
-    	if (null == ps) {
-    		ps = getPreparedDeleteStatement(tClazz);
-    	}
-    	TableDefinition<?> definition = EzquSessionFactory.define(tClazz, db);
-		int i = 1;
-		for (FieldDefinition field : definition.getPrimaryKeyFields()) {
-			Object value = field.getValue(obj);
-        	setValue(ps, i, value);
-        	i++;
-		}
-    	return ps;
-    }
 
 	private void setValue(PreparedStatement prep, int parameterIndex, Object x) {
         try {
@@ -507,25 +533,25 @@ public class DbUtils {
 	 * Close all the statements and clean the maps.
 	 */
 	void clean() {
-		for (PreparedStatement ps: insertStatements.values()) {
+		for (StatementWithCount swc: insertStatements.values()) {
 			try {
-				ps.close();
+				swc.ps.close();
 			}
 			catch (SQLException e) {
 				// nothing I can do
 			}
 		}
-		for (PreparedStatement ps: updateStatements.values()) {
+		for (StatementWithCount swc: updateStatements.values()) {
 			try {
-				ps.close();
+				swc.ps.close();
 			}
 			catch (SQLException e) {
 				// nothing I can do
 			}
 		}
-		for (PreparedStatement ps: deleteStatements.values()) {
+		for (StatementWithCount swc: deleteStatements.values()) {
 			try {
-				ps.close();
+				swc.ps.close();
 			}
 			catch (SQLException e) {
 				// nothing I can do
@@ -534,5 +560,14 @@ public class DbUtils {
 		insertStatements.clear();
 		updateStatements.clear();
 		deleteStatements.clear();
+	}
+	
+	private class StatementWithCount {
+		PreparedStatement ps;
+		int count;
+
+		public StatementWithCount(PreparedStatement ps) {
+			this.ps = ps;
+		}
 	}
 }

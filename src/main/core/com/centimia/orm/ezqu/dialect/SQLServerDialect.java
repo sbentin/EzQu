@@ -118,6 +118,9 @@ public class SQLServerDialect implements SQLDialect {
 		else if (fieldClass == java.sql.Clob.class) {
 			return "VARCHAR(MAX)";
 		}
+		else if (fieldClass == java.util.UUID.class || fieldClass == java.net.InetAddress.class) {
+			return "BINARY(16)";
+		}
 		else if (fieldClass.isArray()) {
 			// not recommended for real use. Arrays and relational DB don't go well together and don't make much sense!
 			Class<?> componentClass = fieldClass.getComponentType();

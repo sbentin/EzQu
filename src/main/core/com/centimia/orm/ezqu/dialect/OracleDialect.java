@@ -112,6 +112,9 @@ public class OracleDialect implements SQLDialect {
 		else if (fieldClass == java.sql.Clob.class) {
 			return "CLOB";
 		}
+		else if (fieldClass == java.util.UUID.class || fieldClass == java.net.InetAddress.class) {
+			return "RAW(16)";
+		}
 		else if (fieldClass.isArray()) {
 			// not recommended for real use. Arrays and relational DB don't go well together and don't make much sense!
 			Class<?> componentClass = fieldClass.getComponentType();

@@ -33,7 +33,7 @@ import com.centimia.orm.ezqu.GeneratorType;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Generated {
-	/** the generation type: either SEQUENCE, IDENTITY or NONE [default] */
+	/** the generation type: either SEQUENCE, IDENTITY, UUID or NONE [default] */
 	GeneratorType generatorType() default GeneratorType.NONE;
 	
 	/** If sequence is used, put the sequence name here. Other wise omit this */

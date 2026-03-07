@@ -61,7 +61,7 @@ public class Function implements Token {
     }
 
     /**
-     * User when we need to ignore the left side of the where condition
+     * Used, internally, when we need to ignore the left side of the where condition
      * @return Long
      */
     public static Long ignore() {
@@ -98,8 +98,9 @@ public class Function implements Token {
             Utils.newObject(Boolean.class), new Function("", x) {
                 @Override
 				public void appendSQL(SQLStatement stat, Query<?> query) {
+                	stat.appendSQL("(");
                 	query.appendSQL(stat, x[0], x[0].getClass().isEnum(), x[0].getClass());
-                    stat.appendSQL(" IS NULL");
+                    stat.appendSQL(" IS NULL)");
                 }
             });
     }
@@ -109,8 +110,9 @@ public class Function implements Token {
             Utils.newObject(Boolean.class), new Function("", x) {
                 @Override
 				public void appendSQL(SQLStatement stat, Query<?> query) {
+                	stat.appendSQL("(");
                 	query.appendSQL(stat, x[0], x[0].getClass().isEnum(), x[0].getClass());
-                    stat.appendSQL(" IS NOT NULL");
+                    stat.appendSQL(" IS NOT NULL)");
                 }
             });
     }
@@ -120,8 +122,9 @@ public class Function implements Token {
             Utils.newObject(Boolean.class), new Function("", x) {
                 @Override
 				public void appendSQL(SQLStatement stat, Query<?> query) {
-                    stat.appendSQL("NOT ");
+                    stat.appendSQL("(NOT ");
                     query.appendSQL(stat, x[0], x[0].getClass().isEnum(), x[0].getClass());
+                    stat.appendSQL(")");
                 }
             });
     }
@@ -133,12 +136,14 @@ public class Function implements Token {
             @Override
 			public void appendSQL(SQLStatement stat, Query<?> query) {
                 int i = 0;
+                stat.appendSQL("(");
                 for (Object o : x) {
                     if (i++ > 0) {
                         stat.appendSQL(" OR ");
                     }
                     query.appendSQL(stat, o, o.getClass().isEnum(), o.getClass());
                 }
+                stat.appendSQL(")");
             }
         });
     }
@@ -150,12 +155,14 @@ public class Function implements Token {
             @Override
 			public void appendSQL(SQLStatement stat, Query<?> query) {
                 int i = 0;
+                stat.appendSQL("(");
                 for (Object o : x) {
                     if (i++ > 0) {
                         stat.appendSQL(" AND ");
                     }
                     query.appendSQL(stat, o, o.getClass().isEnum(), o.getClass());
                 }
+                stat.appendSQL(")");
             }
         });
     }

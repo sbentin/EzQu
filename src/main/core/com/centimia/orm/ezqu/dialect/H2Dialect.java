@@ -98,6 +98,9 @@ public class H2Dialect implements SQLDialect {
 		else if (fieldClass == java.sql.Clob.class) {
 			return "CLOB";
 		}
+		else if (fieldClass == java.util.UUID.class || fieldClass == java.net.InetAddress.class) {
+			return "BINARY(16)";
+		}
 		else if (fieldClass.isArray()) {
 			Class<?> componentClass = fieldClass.getComponentType();
 			if (Byte.class.isAssignableFrom(componentClass)) {

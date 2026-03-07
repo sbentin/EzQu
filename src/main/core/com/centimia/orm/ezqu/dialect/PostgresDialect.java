@@ -50,7 +50,7 @@ public class PostgresDialect implements SQLDialect {
 
 	@Override
 	public String getDataType(Class<?> fieldClass) {
-		final String BINARY = "BINARY";
+		final String BINARY = "BYTEA";
 		if (fieldClass == Integer.class) {
 			return "INTEGER";
 		}
@@ -111,15 +111,16 @@ public class PostgresDialect implements SQLDialect {
 		else if (fieldClass == java.sql.Clob.class) {
 			return "TEXT";
 		}
+		else if (fieldClass == java.util.UUID.class || fieldClass == java.net.InetAddress.class) {
+			return BINARY;
+		}
 		else if (fieldClass.isArray()) {
 			Class<?> componentClass = fieldClass.getComponentType();
-			if (Byte.class.isAssignableFrom(componentClass)) {
-				// byte array is mapped to BINARY type
-				return BINARY;
-			}
-			else if (null != componentClass.getAnnotation(Entity.class) || null != componentClass.getAnnotation(MappedSuperclass.class)) {
+			if (null != componentClass.getAnnotation(Entity.class) || null != componentClass.getAnnotation(MappedSuperclass.class)) {
 				throw new EzquError("IllegalArgument - Array of type 'com.centimia.orm.ezqu.Entity' are relations. Either mark as transient or use a Collection type instead.");
 			}
+			else
+				return BINARY;
 		}
 		else if (fieldClass.isEnum()) {
 			return VARCHAR;

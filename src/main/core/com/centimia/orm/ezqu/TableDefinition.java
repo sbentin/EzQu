@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.net.InetAddress;
 import java.sql.BatchUpdateException;
 import java.sql.Blob;
 import java.sql.Clob;
@@ -44,6 +45,7 @@ import com.centimia.orm.ezqu.annotation.Generated;
 import com.centimia.orm.ezqu.annotation.Immutable;
 import com.centimia.orm.ezqu.annotation.Index;
 import com.centimia.orm.ezqu.annotation.Indices;
+import com.centimia.orm.ezqu.annotation.Inheritance;
 import com.centimia.orm.ezqu.annotation.Inherited;
 import com.centimia.orm.ezqu.annotation.Interceptor;
 import com.centimia.orm.ezqu.annotation.Lazy;
@@ -90,32 +92,59 @@ class TableDefinition<T> {
 	TableDefinition(Class<T> clazz, Dialect dialect) {
 		this.dialect = dialect;
 		this.clazz = clazz;
+		
 		String nameOfTable = clazz.getSimpleName();
 		
-		// Handle table annotation if entity and Table annotations exist
-		com.centimia.orm.ezqu.annotation.Table tableAnnotation = clazz.getAnnotation(com.centimia.orm.ezqu.annotation.Table.class);
-		if (tableAnnotation != null && tableAnnotation.name() != null && !"".equals(tableAnnotation.name())) {
-			nameOfTable = tableAnnotation.name();
+		boolean isEntity = clazz.getAnnotation(Entity.class) != null;
+		boolean isMappedSuperClass = clazz.getAnnotation(MappedSuperclass.class) != null;
+		if (isEntity && isMappedSuperClass)
+			throw new EzquError("A class cannot be both an Entity and a Mapped Super Class. Class %s is annotated with both", clazz);
+		
+		Inheritance inheritance = clazz.getAnnotation(Inheritance.class);
+		Inherited inherited = clazz.getAnnotation(Inherited.class);
+		Discriminator discriminator = clazz.getAnnotation(Discriminator.class);
+		boolean isInheritance = null != inheritance || null != inherited || null != discriminator;
+		
+		if (null != inheritance) {
+			if (isEntity) {
+				this.inheritedType = inheritance.inheritedType();
+				this.discriminatorColumn = inheritance.discriminatorColumn();
+				String inheritanceTableName = inheritance.discriminatorTableName();
+				if (null != inheritanceTableName && inheritanceTableName.isBlank())
+					nameOfTable = inheritanceTableName;
+			}
 		}
-		if (clazz.getAnnotation(Entity.class) != null || (!Modifier.isAbstract(clazz.getModifiers()) && null != clazz.getAnnotation(MappedSuperclass.class))) {
+		else {
+			if (inherited != null) {
+				nameOfTable = updateInheritenceData(clazz);
+			}
+		}
+		
+		if (null != discriminator) {
+			if (null != inheritance) {
+				// this means that we are on the root and the chosen strategy is discriminator.
+				// since we have all the info we need we can simply just get complete the discriminator value.
+				this.discriminatorValue = discriminator.discriminatorValue();
+			}
+			else {
+				nameOfTable = updateInheritenceData(clazz);
+			}
+		}
+		
+		if (!isInheritance) {			
+			// Handle table annotation if entity and Table annotations exist
+			com.centimia.orm.ezqu.annotation.Table tableAnnotation = clazz.getAnnotation(com.centimia.orm.ezqu.annotation.Table.class);
+			if (tableAnnotation != null && tableAnnotation.name() != null && !"".equals(tableAnnotation.name())) {
+				nameOfTable = tableAnnotation.name();
+			}
+		}
+		this.tableName = nameOfTable;
+		
+		if (isEntity || (!Modifier.isAbstract(clazz.getModifiers()) && isMappedSuperClass)) {
 			// we must have primary keys
 			primaryKeyColumnNames = new ArrayList<>();
 		}
-		this.tableName = nameOfTable;
-		Inherited inherited = clazz.getAnnotation(Inherited.class);
-		if (inherited != null) {
-			this.inheritedType = inherited.inheritedType();
-			this.discriminatorValue = inherited.discriminatorValue();
-			this.discriminatorColumn = inherited.discriminatorColumn();
-		}
-		else {
-			Discriminator discriminator = clazz.getAnnotation(Discriminator.class);
-			if (null != discriminator) {
-				this.inheritedType = InheritedType.DISCRIMINATOR;
-				this.discriminatorValue = discriminator.discriminatorValue();
-				this.discriminatorColumn = discriminator.discriminatorColumn();
-			}
-		}
+		
 		com.centimia.orm.ezqu.annotation.Interceptor interceptorAnnot = getInterceptorAnnotation(clazz);
 		if (null != interceptorAnnot) {
 			this.interceptorEvents = interceptorAnnot.event();
@@ -309,7 +338,7 @@ class TableDefinition<T> {
 			if (java.time.temporal.Temporal.class.isAssignableFrom(classType) || java.util.Date.class.isAssignableFrom(classType) || java.lang.Number.class.isAssignableFrom(classType)
 					|| String.class.isAssignableFrom(classType) || Boolean.class.isAssignableFrom(classType)
 					|| Blob.class.isAssignableFrom(classType) || Clob.class.isAssignableFrom(classType)
-					|| UUID.class.isAssignableFrom(classType) || classType.isEnum()) {
+					|| UUID.class.isAssignableFrom(classType) || InetAddress.class.isAssignableFrom(classType) || classType.isEnum()) {
 
 				if (null != f.getAnnotation(Version.class)) {
 					if (null == this.version) {
@@ -357,9 +386,9 @@ class TableDefinition<T> {
 					fieldDef.isPrimaryKey = true;
 					primaryKeyColumnNames.add(fieldDef);
 					fieldDef.genType = pkAnnotation.generatorType();
-					if (fieldDef.genType != null){
+					if (fieldDef.genType != null) {
 						// check if allowed
-						if (this.primaryKeyColumnNames.size() > 1){
+						if (this.primaryKeyColumnNames.size() > 1) {
 							throw new EzquError("Too many primary keys with an auto increment field. Using an auto increment " +
 									"field requires a single column primary key. For uniqueness consider unique indexs in your table");
 						}
@@ -779,8 +808,12 @@ class TableDefinition<T> {
 					throw new EzquConcurrencyException(tableName, obj.getClass(), primaryKey, lVersion);
 				}
 			}
+			else if (-1 == numOfResults) {
+				// this means that the update was not successful due to an sql error, which for some reason was not handled.
+				throw new EzquError("An error occurred during update of object %s in table %s", obj, tableName);
+			}	
 			else if (null != this.version) {
-				// we need to update the instance with the new version
+				// successful, we need to update the instance with the new version (which we inserted in the update statement)
 				try {
 					if (Long.class == this.version.field.getType())
 						this.version.field.set(obj, lVersion.longValue() + 1);
@@ -1041,6 +1074,23 @@ class TableDefinition<T> {
 		return false;
 	}
 	
+	private String updateInheritenceData(Class<?> clazz) {
+		if (null == clazz || Object.class.equals(clazz))
+			throw new EzquError("IllegalState - No Inheritance annotation found in class hierarchy for class %s", this.clazz);
+		Inheritance inheritance = clazz.getAnnotation(Inheritance.class);
+		if (null == inheritance)
+			return updateInheritenceData(clazz.getSuperclass());
+		else {
+			this.inheritedType = inheritance.inheritedType();
+			this.discriminatorColumn = inheritance.discriminatorColumn();
+			String inheritanceTableName = inheritance.discriminatorTableName();
+			if (null != inheritanceTableName && inheritanceTableName.isBlank())
+				return inheritanceTableName;
+			else
+				return clazz.getSimpleName();
+		}
+	}
+	
 	/*
 	 * get the most "forward" "Intercepter Annotation" in the hierarchy tree.
 	 */
@@ -1211,13 +1261,13 @@ class TableDefinition<T> {
 			else if (field.genType == GeneratorType.UUID || UUID.class.isAssignableFrom(field.field.getType())) {
 				try {
 					UUID pk = UUID.randomUUID();
+					value = pk.toString(); // the value int underlying Db is varchar
+					
 					// add the new id to the object
 					if (String.class.isAssignableFrom(field.field.getType()))
-						field.field.set(obj, pk.toString());
+						field.field.set(obj, value);
 					else if (UUID.class.isAssignableFrom(field.field.getType()))
-							field.field.set(obj, pk);
-
-					value = pk.toString(); // the value int underlying Db is varchar
+						field.field.set(obj, Utils.toUUIDBytes(pk));
 				}
 				catch (Exception e) {
 					throw new EzquError(e, e.getMessage());
@@ -1252,19 +1302,28 @@ class TableDefinition<T> {
 						try {
 							UUID pk = UUID.randomUUID();
 							// add the new id to the object
-							if (String.class.isAssignableFrom(field.field.getType()))
-								field.field.set(obj, pk.toString());
-							else if (UUID.class.isAssignableFrom(field.field.getType()))
-									field.field.set(obj, pk);
-	
-							value = pk.toString(); // the value int underlying Db is varchar
+							if (String.class.isAssignableFrom(field.field.getType())) {
+								value = pk.toString(); // the value int underlying Db is varchar
+								field.field.set(obj, value);
+							}
+							else if (UUID.class.isAssignableFrom(field.field.getType())) {
+								value = Utils.toUUIDBytes(pk); // the value in underlying Db is byte array
+								field.field.set(obj, value);
+							}
+							else
+								throw new EzquError("Unsupported field type for UUID generator. Supported types are String and byte array. Field: " + field.field.getName());
 						}
 						catch (Exception e) {
 							throw new EzquError(e, e.getMessage());
 						}
 					}
 				}
-				
+				else if (null != value && UUID.class.isAssignableFrom(field.field.getType())) {
+					value = Utils.toUUIDBytes((UUID)value);
+				}
+				else if (null != value && InetAddress.class.isAssignableFrom(field.field.getType())) {
+					value = Utils.toINetBytes((InetAddress)value);
+				}
 				stat.addParameter(value);
 				break;
 			case FK: {
@@ -1336,7 +1395,7 @@ class TableDefinition<T> {
 		Object parent = Utils.newObject(obj.getClass());
 		Object desc = Utils.newObject(fdef.field.getType());
 
-		Query query = (Query) db.from(desc);
+		Query query = db.from(desc);
 		QueryJoinWhere queryJoin = query.innerJoin(parent).on(fdef.field.get(parent)).is(desc);
 
 		boolean firstCondition = true;

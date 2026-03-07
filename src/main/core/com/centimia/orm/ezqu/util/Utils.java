@@ -17,6 +17,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.sql.Clob;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -273,6 +276,47 @@ public class Utils {
 			}
 		}
 		throw new EzquError("Can not convert the value " + o + " from " + currentType + " to " + targetType);
+	}
+	
+	public static UUID newUUID(byte[] bytes) {
+		if (bytes == null || bytes.length != 16) {
+            throw new IllegalArgumentException("Expected 16 bytes, got " + (bytes == null ? "null" : bytes.length));
+        }
+        ByteBuffer bb = ByteBuffer.wrap(bytes);
+        long most = bb.getLong();
+        long least = bb.getLong();
+        return new UUID(most, least);
+	}
+	
+	public static byte[] toUUIDBytes(UUID uuid) {
+		// UUID stores the value as two 64‑bit longs
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        return bb.array(); // BIG_ENDIAN (the default) → 128‑bit big‑endian
+	}
+	
+	public static InetAddress newInetAddress(byte[] bytes) {
+		try {
+			return InetAddress.getByAddress(bytes.length == 4 ? bytes : java.util.Arrays.copyOfRange(bytes, 12, 16));
+		}
+		catch (UnknownHostException e) {
+			throw new EzquError("Can not convert the value " + bytes + " from byte[] to INetAddress");
+		}
+	}
+	
+	public static byte[] toINetBytes(InetAddress inetAddr) {
+		byte[] ipBytes = inetAddr.getAddress(); // IPv4 = 4 bytes, IPv6 = 16 bytes
+
+		// Store in a 16‑byte column (pad IPv4 with leading zeros)
+		byte[] raw16 = new byte[16];
+		if (ipBytes.length == 4) {
+		    System.arraycopy(ipBytes, 0, raw16, 12, 4);  // store in lower 4 bytes
+		}
+		else {
+		    System.arraycopy(ipBytes, 0, raw16, 0, 16);
+		}
+		return raw16;
 	}
 	
 	static void makeAccessible(Field field) throws Exception {

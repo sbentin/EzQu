@@ -150,8 +150,18 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 						}
 					}
 					else if (Types.UUID == type && null != fieldValueFromDb) {
+						if (fieldValueFromDb instanceof byte[] bytes) {
+							field.set(objToSet, Utils.newUUID(bytes));
+						}
 						// object from DB should be a String by mapping
 						field.set(objToSet, UUID.fromString((String)fieldValueFromDb));
+					}
+					else if (Types.INETADDRESS == type && null != fieldValueFromDb) {
+						if (fieldValueFromDb instanceof byte[] bytes) {
+							field.set(objToSet, Utils.newInetAddress(bytes));
+						}
+						// object from DB should be a String by mapping
+						field.set(objToSet, null);
 					}
 					else
 						field.set(objToSet, fieldValueFromDb);
