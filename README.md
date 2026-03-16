@@ -2,8 +2,8 @@
 
 EzQu is short for "Easy Query" and provides a straightforward solution for accessing relational databases using pure Java. The tool is designed to be a comprehensive solution for working with relational databases, offering several advantages over traditional JDBC. Unlike JDBC, which requires writing "String"-based SQL queries, EzQu can be easily integrated into Java applications since it is written in pure Java. Additionally, EzQu uses a fluent API that enables type checking and IDE auto-complete. One of the key benefits of EzQu is its ability to provide full protection against SQL injection, ensuring the security of your database operations.
 
-!!! [_A glimpse of what ezQu can do go_](https://tm.centimia.com/ezqu/code-examples)
-!!! [_EzQu Full Documentation_](https://tm.centimia.com/ezqu)
+* [_A glimpse of what ezQu can do go_](https://tm.centimia.com/ezqu/code-examples)
+* [_EzQu Full Documentation_](https://tm.centimia.com/ezqu)
 
 EzQu originated in 2008 as a fork of JaQu, a tool developed by Thomas Mueller, the author of H2 Database. After jaQu was abandoned due to a lack of attention, EzQu forked the project and has since undergone significant development, following a different path from the original JaQu project. Today, EzQu is a well-maintained, supported, and extended library that has been deployed in large projects using MariaDB, Oracle, PostgresDB, DB2, MS SqlServer, and H2.
 
