@@ -65,7 +65,7 @@ public class PostCompileMojo extends AbstractMojo {
 			}
 		}
 		catch (Exception e) {
-			throw new MojoExecutionException("Failed to create marker file", e);
+			throw new MojoExecutionException("Failed to enhance classes", e);
 		}		
 	}
 }

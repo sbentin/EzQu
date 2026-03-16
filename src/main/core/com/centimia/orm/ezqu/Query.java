@@ -856,7 +856,7 @@ public class Query<T> {
 	 * @return the joined query
 	 */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public <U> QueryJoin leftOuterJoin(U alias) {
+    public <U> QueryJoin<T> leftOuterJoin(U alias) {
         TableDefinition<T> def = (TableDefinition<T>) db.define(alias.getClass());
         SelectTable<T> join = new SelectTable(this, alias, JOIN_TYPE.LEFT_OUTER_JOIN);
         def.initSelectObject(join, alias, aliasMap);

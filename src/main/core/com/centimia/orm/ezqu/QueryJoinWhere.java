@@ -152,7 +152,6 @@ public class QueryJoinWhere<T> {
 	 * @param alias an alias for the table to join
 	 * @return the joined query
 	 */
-    @SuppressWarnings("unchecked")
     public <U> QueryJoin<T> leftOuterJoin(U alias) {
        return query.leftOuterJoin(alias);
     }
