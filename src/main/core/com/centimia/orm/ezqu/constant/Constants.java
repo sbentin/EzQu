@@ -21,9 +21,8 @@ package com.centimia.orm.ezqu.constant;
 import java.util.regex.Pattern;
 
 /**
- * 
+ * General constants used
  * @author shai
- *
  */
 public class Constants {
 	private Constants() {}

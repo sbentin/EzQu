@@ -11,7 +11,7 @@
 package com.centimia.orm.ezqu;
 
 /**
- *
+ * Prototype for functions that do replacement in the query
  * @author shai
  */
 public abstract class ReplacementFunctions implements Token {

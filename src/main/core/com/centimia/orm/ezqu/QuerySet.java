@@ -21,6 +21,8 @@ package com.centimia.orm.ezqu;
 /**
  * Represents the 'SET' command type within an update query.
  *
+ * @param <T> - The type of object
+ * @param <F> - The type of column being set
  * @author Shai Bentin
  */
 public class QuerySet<T, F> {
@@ -34,31 +36,31 @@ public class QuerySet<T, F> {
 		this.value = v;
 	}
 
-	/*
+	/**
 	 * Starts a where clause for an update query. Based on the field A of the Table T
-	 * @param <A>
+	 * 
+	 * @param &lt;A&gt; - type of column
 	 * @param a
-	 * @return QueryCondition<T, A>
+	 * @return QueryCondition&lt;T, A&gt;
 	 */
 	public <A> QueryCondition<T, A> where(A a){
 		query.addUpdateToken(new SetDirective<>(x, value));
 		return query.where(a);
 	}
 
-	/*
+	/**
 	 * Starts a where clause for an update query. Based on a simple string where
 	 *
-	 * @param <A>
 	 * @param whereCondition
-	 * @return QueryWhere<T>
+	 * @return QueryWhere&lt;T&gt;
 	 */
-	<A> QueryWhere<T> where(final StringFilter whereCondition){
+	public QueryWhere<T> where(final StringFilter whereCondition){
     	Token conditionCode = (s, q) -> s.appendSQL(whereCondition.getConditionString(query.getSelectTable()));
 		query.addConditionToken(conditionCode);
 		return new QueryWhere<>(query);
     }
 
-	/*
+	/**
 	 * Use to add more field sets in an update query.
 	 *
 	 * @param <A>

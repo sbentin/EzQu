@@ -24,6 +24,7 @@ import com.centimia.orm.ezqu.annotation.Interceptor;
  * Implementations of this interface are used for intercepting CRUD operations on Entities {@link Entity}. It can also be used with POJOs.<br>
  * In order to use this interceptor you must mark your bean with the @interceptor {@link Interceptor} annotation.
  *
+ * @param <K> the entity which is handled by intercepter
  * @author shai
  * @since 2.0.0
  */

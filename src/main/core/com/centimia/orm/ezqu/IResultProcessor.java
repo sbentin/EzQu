@@ -16,8 +16,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * A functional interface for processing query {@link ResultSet}
+ * 
+ * @param <T> the type of entity object
  * @author shai
- *
  */
 @FunctionalInterface
 public interface IResultProcessor<T> {

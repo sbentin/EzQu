@@ -22,9 +22,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
+ * General String utilities
  * 
  * @author shai
- *
  */
 public class StringUtils {
 	

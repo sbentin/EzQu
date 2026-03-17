@@ -25,9 +25,11 @@ import java.lang.annotation.Target;
 
 /**
  * Use to set a field for a many to many relationship.
- * <p><b>Notes:<ol><li>Relation and Table must have a primary key, and primary key must be defined before relationship</li>
+ * <p><b>Notes:</b>
+ * <ol><li>Relation and Table must have a primary key, and primary key must be defined before relationship</li>
  * <li>The generic type is used to infer the other object, used to get the primary key type.</li>
- * <li>Lazy loading is always used, and the relationship is always two sided. (can be seen from both objects)</li></ol>
+ * <li>Lazy loading is always used, and the relationship is always two sided. (can be seen from both objects)</li>
+ * </ol></p>
  * 
  * @author Shai Bentin
  */

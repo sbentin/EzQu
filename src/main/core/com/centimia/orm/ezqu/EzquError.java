@@ -19,7 +19,8 @@
 package com.centimia.orm.ezqu;
 
 /**
- *
+ * The main exception thrown on ezqu events
+ * 
  * @author shai
  */
 public class EzquError extends RuntimeException {

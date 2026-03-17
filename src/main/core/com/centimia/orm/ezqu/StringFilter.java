@@ -28,7 +28,7 @@ import java.io.Serializable;
  * use:
  * select.from(persistable).where(new StringFilter(){...}).select();
  * select.from(persistable).where(new StringFilter(){...}).and(persistable.getSomeField()).is(someValue).select()
- * </pre>
+ * </pre></p>
  *
  * @author shai
  */

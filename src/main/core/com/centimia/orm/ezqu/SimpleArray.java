@@ -17,6 +17,8 @@ import java.sql.SQLException;
 import java.util.Map;
 
 /**
+ * A base type to interrogate arrays in ezqu
+ * 
  * @author shai
  */
 public class SimpleArray implements Array {

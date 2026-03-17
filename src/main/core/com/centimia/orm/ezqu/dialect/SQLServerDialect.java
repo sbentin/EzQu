@@ -33,9 +33,9 @@ import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
 /**
+ * Dialect for microSoft SQL Server
  * 
  * @author Shai Bentin
- *
  */
 public class SQLServerDialect implements SQLDialect {
 

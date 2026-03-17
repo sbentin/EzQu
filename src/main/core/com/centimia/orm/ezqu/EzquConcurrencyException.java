@@ -13,6 +13,8 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * An exception thrown when an entity update is tried on an entity which has been updated with the given version
+ * 
  * @author shai
  */
 public class EzquConcurrencyException extends EzquError {

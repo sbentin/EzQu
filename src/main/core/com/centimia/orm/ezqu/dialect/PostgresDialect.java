@@ -32,9 +32,9 @@ import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
 /**
+ * Dialect for postgresql db
  * 
  * @author Shai Bentin
- *
  */
 public class PostgresDialect implements SQLDialect {
 	@Override

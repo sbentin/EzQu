@@ -37,14 +37,14 @@ import java.lang.annotation.Target;
  * Say you have the following Object Entity:<br>
  * <pre>
  * private class Person {
- *  &#64PrimaryKey(GenerationType = GenerationType.IDENTITY)
+ *  &#64;PrimaryKey(GenerationType = GenerationType.IDENTITY)
  * 	private Long id;
  * 
  *  private String firstName;
  *  
  *  private String lastName;
  * 
- *  &#64Extension
+ *  &#64;Extension
  *  private String fullName;
  *  
  *  public Person() {}

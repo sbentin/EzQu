@@ -11,6 +11,8 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * Implementation of the "having" sql syntax
+ * 
  * @author shai
  */
 public class HavingToken implements Token {

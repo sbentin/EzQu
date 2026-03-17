@@ -11,6 +11,9 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * supplies an EzquSession query result
+ * 
+ * @param <T> the object being returned from the supplier
  * @author shai
  */
 @FunctionalInterface

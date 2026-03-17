@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * Handles where for join queries
+ * 
+ * @param <T> - the main entity joined to
  * @author shai
  */
 public class QueryJoinWhere<T> {

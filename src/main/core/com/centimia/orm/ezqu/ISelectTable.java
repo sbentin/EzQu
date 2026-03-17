@@ -17,7 +17,6 @@ import java.util.Set;
  * The current table in query
  * 
  * @author shai
- * @param &lt;T&gt;
  */
 public interface ISelectTable {
 

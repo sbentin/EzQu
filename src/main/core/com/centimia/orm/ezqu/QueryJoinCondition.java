@@ -13,6 +13,7 @@ package com.centimia.orm.ezqu;
 /**
  * This class represents a query with join and an incomplete condition.
  *
+ * @param <T> the entity
  * @param <A> the incomplete condition data type
  */
 public class QueryJoinCondition<T, A> {

@@ -11,7 +11,8 @@
 package com.centimia.orm.ezqu;
 
 /**
- *
+ * The sql functions using in "having"
+ * 
  * @author shai
  */
 public enum HavingFunctions {

@@ -27,8 +27,8 @@ import com.centimia.orm.ezqu.CascadeType;
 
 /**
  * Use to set a field for a one to many relationship.
- * <p><b><ol><li>Relation and Table must have a primary key, and primary key must be defined before relationship</li>
- * <li>If using a relation table there is no sense of having the Parent object as a field of the child. <u>Doing so will yield an error!</u></li></ol></b></p>
+ * <p><ol><li><b>Relation and Table must have a primary key, and primary key must be defined before relationship</b></li>
+ * <li><b>If using a relation table there is no sense of having the Parent object as a field of the child. <u>Doing so will yield an error!</u></b></li></ol></p>
  * <p>
  * <b>Note:</b> The generic type if exists, is used to infer the other object, otherwise use the 'childType' property.
  * In oneToMany, lazyLoading is the default, but eager load can be done. The relationship can be Two sided (can be seen from both objects) or one sided (can be seen from parent only).

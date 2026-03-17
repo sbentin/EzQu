@@ -35,14 +35,14 @@ import com.centimia.orm.ezqu.InheritedType;
  * <li>
  * <b>Table Per Class</b><br>
  * This is the default inheritance and the easiest to implement. It means that each entity has its own table with all the fields, including the inherited ones, in it.
- * It allows for AUTO incrementors like IDENTITY and SEQUENCE.
+ * It allows for AUTO incrementors like IDENTITY and SEQUENCE.<br><br>
  * </li>
- * <br>
  * <li><b>Table with Discriminator</b><br>
  * This strategy, though not the only possible strategy, is also a performent strategy in a relational DB as it requires no joins or unions, and it allows for
  * AUTO incrementors like IDENTITY and SEQUENCE. When using this stratgety you should also supply the DiscriminatorColumn and DiscriminatorValue() value.
  * </li>
- * <p>
+ * </ul>
+ * 
  * @author shai
  */
 @Retention(RUNTIME)

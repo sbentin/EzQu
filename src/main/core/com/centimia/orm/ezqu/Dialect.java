@@ -33,7 +33,8 @@ import com.centimia.orm.ezqu.dialect.PostgresDialect;
 import com.centimia.orm.ezqu.dialect.SQLServerDialect;
 
 /**
- *
+ * Base enum for all supported dialects
+ * 
  * @author Shai Bentin
  */
 public enum Dialect {

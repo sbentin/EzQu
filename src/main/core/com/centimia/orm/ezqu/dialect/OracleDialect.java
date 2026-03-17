@@ -41,9 +41,9 @@ import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
 /**
+ * Dialect for oracle database
  * 
  * @author Shai Bentin
- *
  */
 public class OracleDialect implements SQLDialect {
 

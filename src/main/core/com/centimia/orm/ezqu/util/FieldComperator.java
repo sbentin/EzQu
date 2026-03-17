@@ -18,6 +18,7 @@ import java.util.Comparator;
 import com.centimia.orm.ezqu.EzquError;
 
 /**
+ * Compares field values by reflection
  * @author shai
  */
 public class FieldComperator implements Comparator<Object> {

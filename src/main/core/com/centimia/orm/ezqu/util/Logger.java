@@ -11,8 +11,9 @@
 package com.centimia.orm.ezqu.util;
 
 /**
+ * The internal logger interface
+ * S
  * @author shai
- *
  */
 public interface Logger {
 

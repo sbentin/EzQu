@@ -11,8 +11,9 @@
 package com.centimia.orm.ezqu.util;
 
 /**
+ * Internal Logger implementation based on slf4j
+ * 
  * @author shai
- *
  */
 public class Slf4jLogger implements Logger {
 	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger("com.centimia.orm.ezqu.log");

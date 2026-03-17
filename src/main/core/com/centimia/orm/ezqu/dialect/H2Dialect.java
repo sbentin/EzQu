@@ -31,6 +31,7 @@ import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
 /**
+ * Dialect for H2 database
  * 
  * @author Shai Bentin
  */

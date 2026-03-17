@@ -13,6 +13,8 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * An implementation of the LIMIT sql syntax
+ * 
  * @author shai
  */
 public class LimitToken implements Token {

@@ -27,8 +27,9 @@ import com.centimia.orm.ezqu.CRUDInterceptor;
 
 
 /**
+ * Annotation to tell the entity of a {@link CRUDInterceptor}
+ * 
  * @author shai
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

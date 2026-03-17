@@ -34,9 +34,8 @@ import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
 /**
- * 
+ * Dialect used for MYSQL and MariaDB
  * @author Shai Bentin
- *
  */
 public class MySqlDialect implements SQLDialect {
 	

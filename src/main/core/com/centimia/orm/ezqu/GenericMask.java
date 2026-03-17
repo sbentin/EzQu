@@ -13,6 +13,10 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * Used to mask between an entity type and its primary key
+ * 
+ * @param <K> - the instance of the key
+ * @param <A> - the java type of this key
  * @author shai
  */
 public final class GenericMask<K, A> {

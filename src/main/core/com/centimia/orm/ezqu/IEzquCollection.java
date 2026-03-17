@@ -17,6 +17,7 @@ import java.util.Collection;
 /**
  * So we can refer and locate such lists or sets outside of Ezqu
  * 
+ * @param <E> - the type of entity in the collection
  * @author shai
  */
 public interface IEzquCollection<E> extends Collection<E> {

@@ -18,8 +18,8 @@ Created		   Feb 12, 2014			shai
 package com.centimia.orm.ezqu.constant;
 
 /**
+ * The type of statement used for batch
  * @author shai
- *
  */
 public enum StatementType {
 	INSERT,UPDATE,DELETE;

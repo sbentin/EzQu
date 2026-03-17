@@ -18,8 +18,9 @@ Created		   Apr 23, 2012			shai
 package com.centimia.orm.ezqu.annotation;
 
 /**
+ * Represents an intercept event
+ * 
  * @author shai
- *
  */
 public enum Event {
 	ALL, INSERT, MERGE, UPDATE, DELETE

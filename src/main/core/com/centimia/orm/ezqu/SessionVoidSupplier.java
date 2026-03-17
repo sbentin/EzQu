@@ -11,6 +11,8 @@
 package com.centimia.orm.ezqu;
 
 /**
+ * A supplier that does not return a result
+ * 
  * @author shai
  */
 @FunctionalInterface

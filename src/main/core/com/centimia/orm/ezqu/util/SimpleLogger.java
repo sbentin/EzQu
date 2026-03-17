@@ -11,8 +11,9 @@
 package com.centimia.orm.ezqu.util;
 
 /**
+ * Internal logger implementation based on java.util.Logging
+ * 
  * @author shai
- *
  */
 public class SimpleLogger implements Logger {
 	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger("com.centimia.orm.ezqu.logger");

@@ -25,7 +25,7 @@ import com.centimia.orm.ezqu.util.Utils;
 /**
  * This class represents a query.
  *
- * @apiNote &lt;T&gt; the return type
+ * @param <T> the return type (entity)
  * @author shai
  */
 public class Query<T> {

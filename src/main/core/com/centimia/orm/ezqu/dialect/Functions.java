@@ -19,8 +19,9 @@
 package com.centimia.orm.ezqu.dialect;
 
 /**
+ * Core functions for SQL
+ * 
  * @author shai
- *
  */
 public enum Functions {
 	IFNULL
