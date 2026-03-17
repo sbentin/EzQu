@@ -35,7 +35,7 @@ group = 'com.centimia'
 version   = "${mainJarVersion}"
 
 dependencies {
-	implementation 'com.centimia:ccoreException:1.0.2'
+	implementation 'com.centimia:ccoreException:3.0.0'
 	
 	compileOnly 'javax.transaction:javax.transaction-api:1.3'
 	compileOnly 'org.slf4j:slf4j-api:2.0.16'
@@ -75,6 +75,12 @@ sourceSets {
             srcDirs = ['src/main/core', 'src/main/ext', 'src/main/resources']
         }
     }
+}
+
+tasks.javadoc {
+    options.addStringOption('encoding', 'UTF-8')
+	options.addStringOption('Xdoclint:none', '-quiet')
+	options.bottom = "Copyright (c) 2007-2030 Shai Bentin & Centimia Inc.."
 }
 
 import org.apache.maven.tools.plugin.PluginToolsRequest
@@ -158,12 +164,30 @@ tasks.register('mavenPlugin') {
 }
 
 tasks.register('binJar', Jar) {
-	dependsOn tasks.named('mavenPlugin')
-	
+	dependsOn tasks.named('mavenPlugin')	
     from sourceSets.main.output
     exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*', 'plugin-enhanced.xml'
     archiveBaseName.set('ezqu')   // keep the original artifactId
     archiveVersion.set("${mainJarVersion}")
+}
+
+// Sources jar (the Java‑library plugin already creates one)
+tasks.register('sourceJar', Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*'
+    archiveBaseName.set('ezqu')
+    archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('javadocJar', Jar) {
+	dependsOn tasks.javadoc
+    from tasks.javadoc.destinationDir   // ← all docs that were generated
+    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*'
+    archiveBaseName.set('ezqu')
+    archiveClassifier.set('javadoc')
+    archiveVersion.set("${extJarVersion}")
 }
 
 tasks.register('gradleJar', Jar) {
@@ -171,6 +195,25 @@ tasks.register('gradleJar', Jar) {
     include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/gradle/**', 'META-INF/gradle-plugins/**'
     archiveBaseName.set('ezqu-gradle-plugin')
     archiveClassifier.set('')     // “extension” JAR has no classifier
+    archiveVersion.set("${extJarVersion}")
+}
+
+// Sources jar (the Java‑library plugin already creates one)
+tasks.register('gradleSourceJar', Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/gradle/**', 'META-INF/gradle-plugins/**'
+    archiveBaseName.set('ezqu-gradle-plugin')
+    archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('gradleJavadocJar', Jar) {
+	dependsOn tasks.javadoc
+    from tasks.javadoc.destinationDir   // ← all docs that were generated
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/gradle/**', 'META-INF/gradle-plugins/**'
+    archiveBaseName.set('ezqu-gradle-plugin')
+    archiveClassifier.set('javadoc')
     archiveVersion.set("${extJarVersion}")
 }
 
@@ -182,11 +225,49 @@ tasks.register('mavenJar', Jar) {
     archiveVersion.set("${extJarVersion}")
 }
 
+// Sources jar (the Java‑library plugin already creates one)
+tasks.register('mavenSourceJar', Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/maven/**', 'META-INF/maven/**', 'plugin-enhanced.xml'
+    archiveBaseName.set('ezqu-maven-plugin')
+    archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('mavenJavadocJar', Jar) {
+    dependsOn tasks.javadoc
+    from tasks.javadoc.destinationDir   // ← all docs that were generated
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/maven/**', 'META-INF/maven/**', 'plugin-enhanced.xml'
+    archiveBaseName.set('ezqu-maven-plugin')
+    archiveClassifier.set('javadoc')
+    archiveVersion.set("${extJarVersion}")
+}
+
 tasks.register('antJar', Jar) {	
     from sourceSets.main.output
     include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/ant/**'
     archiveBaseName.set('ezqu-ant-plugin')
     archiveClassifier.set('')     // “extension” JAR has no classifier
+    archiveVersion.set("${extJarVersion}")
+}
+
+// Sources jar (the Java‑library plugin already creates one)
+tasks.register('antSourceJar', Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/ant/**'
+    archiveBaseName.set('ezqu-ant-plugin')
+    archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('antJavadocJar', Jar) {
+    dependsOn tasks.javadoc
+    from tasks.javadoc.destinationDir   // ← all docs that were generated
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**', 'com/centimia/orm/ezqu/ext/ant/**'
+    archiveBaseName.set('ezqu-ant-plugin')
+    archiveClassifier.set('javadoc')
     archiveVersion.set("${extJarVersion}")
 }
 
@@ -198,13 +279,21 @@ tasks.register('extJar', Jar) {
     archiveVersion.set("${extJarVersion}")
 }
 
-// Sources jar (the Java‑library plugin already creates one)
-tasks.register('sourceJar', Jar) {
+tasks.register('extSourceJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allJava
-    exclude 'com/centimia/orm/ezqu/ext*', 'META-INF/*'
-    archiveBaseName.set('ezqu')
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**'
+    archiveBaseName.set('ezqu-ext')
     archiveClassifier.set('sources')
+    archiveVersion.set("${extJarVersion}")
+}
+
+tasks.register('extJavadocJar', Jar) {
+    dependsOn tasks.javadoc
+    from tasks.javadoc.destinationDir   // ← all docs that were generated
+    include 'com/centimia/orm/ezqu/ext/common/**', 'com/centimia/orm/ezqu/ext/asm/**'
+    archiveBaseName.set('ezqu-ext')
+    archiveClassifier.set('javadoc')
     archiveVersion.set("${extJarVersion}")
 }
 	
@@ -217,16 +306,17 @@ publishing {
             // Use the “jar” task you created
             artifact tasks.binJar
 			artifact tasks.sourceJar
+			artifact tasks.javadocJar
 			
             // POM – the DSL is easier than the raw XML approach
             pom {
                 name.set('ezqu')
                 description.set('EzQu is an O/R Mapping tool and a JDBC wrapping framework.')
-                url.set('https://github.com/centimia/ezqu')     // adjust
+                url.set('https://github.com/sbentin/EzQu')     // adjust
                 licenses {
                     license {
-                        name.set('Eclipse Public License v1.0')
-                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                        name.set('Eclipse Public License v2.0')
+                        url.set('https://www.eclipse.org/legal/epl-2.0/')
                     }
                     license {
                         name.set('H2 License v1.0')
@@ -241,9 +331,9 @@ publishing {
                     }
                 }
                 scm {
-                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                	connection = 'scm:git:https://github.com/sbentin/EzQu.git'
+                    developerConnection = 'https://github.com/sbentin/EzQu.git'
+                    url = 'https://github.com/sbentin/EzQu.git'
                 }
                 
                 // --- add dependencies ---
@@ -253,7 +343,7 @@ publishing {
                     dependenciesNode.appendNode('dependency').with {
                         appendNode('groupId', 'com.centimia')
                         appendNode('artifactId', 'ccoreException')
-                        appendNode('version', '1.0.2')
+                        appendNode('version', '3.0.0')
                     }
                 }
             }
@@ -265,28 +355,30 @@ publishing {
             version   = project.version
             
             artifact tasks.extJar
+			artifact tasks.extSourceJar
+			artifact tasks.extJavadocJar
 			
             pom {
                 name.set('ezqu-ext')
                 description.set('Library for ezqu entity post‑compilation byte‑code builders. Used for ide plugins')
-                url.set('https://github.com/centimia/ezqu')     // adjust
+                url.set('https://github.com/sbentin/EzQu')     // adjust
                 licenses {
                     license {
-                        name.set('Eclipse Public License v1.0')
-                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                        name.set('Eclipse Public License v2.0')
+                        url.set('https://www.eclipse.org/legal/epl-2.0/')
                     }
                 }
                 developers {
                     developer {
                         id.set('centimia')
                         name.set('Centimia')
-                        email.set('shai@centimia.com')
+                        email.set('info@centimia.com')
                     }
                 }
                 scm {
-                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                	connection = 'scm:git:https://github.com/sbentin/EzQu.git'
+                    developerConnection = 'https://github.com/sbentin/EzQu.git'
+                    url = 'https://github.com/sbentin/EzQu'
                 }
             }
         }
@@ -298,28 +390,30 @@ publishing {
             version   = project.version
 
             artifact tasks.gradleJar
-
+            artifact tasks.gradleSourceJar
+			artifact tasks.gradleJavadocJar
+			
             pom {
                 name.set('ezqu‑gradle-plugin')
                 description.set('Gradle plugin for ezqu entity post‑compilation byte‑code.')
-                url.set('https://github.com/centimia/ezqu')     // adjust
+                url.set('https://github.com/sbentin/EzQu')     // adjust
                 licenses {
                     license {
-                        name.set('Eclipse Public License v1.0')
-                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                        name.set('Eclipse Public License v2.0')
+                        url.set('https://www.eclipse.org/legal/epl-2.0/')
                     }
                 }
                 developers {
                     developer {
                         id.set('centimia')
                         name.set('Centimia')
-                        email.set('shai@centimia.com')
+                        email.set('info@centimia.com')
                     }
                 }
                 scm {
-                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                	connection = 'scm:git:https://github.com/sbentin/EzQu.git'
+                    developerConnection = 'https://github.com/sbentin/EzQu.git'
+                    url = 'https://github.com/sbentin/EzQu'
                 }
                 
                 // --- add dependencies ---
@@ -344,28 +438,30 @@ publishing {
             version   = project.version
 
             artifact tasks.mavenJar
+            artifact tasks.mavenSourceJar
+            artifact tasks.mavenJavadocJar
 
             pom {
                 name.set('ezqu‑maven-plugin')
                 description.set('Maven plugin for ezqu entity post‑compilation byte‑code.')
-                url.set('https://github.com/centimia/ezqu')     // adjust
+                url.set('https://github.com/sbentin/EzQu')
                 licenses {
                     license {
-                        name.set('Eclipse Public License v1.0')
-                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                        name.set('Eclipse Public License v2.0')
+                        url.set('https://www.eclipse.org/legal/epl-2.0/')
                     }
                 }
                 developers {
                     developer {
                         id.set('centimia')
                         name.set('Centimia')
-                        email.set('shai@centimia.com')
+                        email.set('info@centimia.com')
                     }
                 }
                 scm {
-                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                	connection = 'scm:git:https://github.com/sbentin/EzQu.git'
+                    developerConnection = 'https://github.com/sbentin/EzQu.git'
+                    url = 'https://github.com/sbentin/EzQu'
                 }
                 
                 // --- add dependencies ---
@@ -390,28 +486,30 @@ publishing {
             version   = project.version
 
             artifact tasks.antJar
+            artifact tasks.antSourceJar
+            artifact tasks.antJavadocJar
 
             pom {
                 name.set('ezqu‑ant-plugin')
                 description.set('Ant plugin for ezqu entity post‑compilation byte‑code.')
-                url.set('https://github.com/centimia/ezqu')     // adjust
+                url.set('https://github.com/sbentin/EzQu')     // adjust
                 licenses {
                     license {
-                        name.set('Eclipse Public License v1.0')
-                        url.set('https://www.eclipse.org/legal/epl-v10.html')
+                        name.set('Eclipse Public License v2.0')
+                        url.set('https://www.eclipse.org/legal/epl-2.0/')
                     }
                 }
                 developers {
                     developer {
                         id.set('centimia')
                         name.set('Centimia')
-                        email.set('shai@centimia.com')
+                        email.set('info@centimia.com')
                     }
                 }
                 scm {
-                	connection = 'scm:git:https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    developerConnection = 'https://scm.centimia.com/scm/repo/shai/EzQu.git'
-                    url = 'https://scm.centimia.com/scm/repo/shai/EzQu'
+                	connection = 'scm:git:https://github.com/sbentin/EzQu.git'
+                    developerConnection = 'https://github.com/sbentin/EzQu.git'
+                    url = 'https://github.com/sbentin/EzQu'
                 }
                 
                 // --- add dependencies ---
@@ -435,26 +533,20 @@ publishing {
                 }
             }
         }
-        
-//		javaDoc(MavenPublication) {
-//			artifactId = "ezqu"
-//			version = "${mainJarVersion}"
-//			artifact javadocJar
-//		}
 	}
 	
 	repositories {
-        maven {
-            url "${artifactory_contextUrl}/libs-release-local"
-            credentials {
-                username = "${artifactory_user}"
-                password = "${artifactory_password}"
-            }
-       }
-        
 //        maven {
-//            url = layout.buildDirectory.dir('staging-deploy')
-//        }
+//            url "${artifactory_contextUrl}/libs-release-local"
+//            credentials {
+//                username = "${artifactory_user}"
+//                password = "${artifactory_password}"
+//            }
+//       }
+        
+        maven {
+            url = layout.buildDirectory.dir('staging-deploy')
+        }
     }
     
     jreleaser {
@@ -490,16 +582,16 @@ publishing {
 
       			// The Generic host url.
       			//
-      			host = 'https://scm.centimia.com/scm/repo/shai/'
+      			host = 'https://github.com/sbentin/EzQu/'
 
       			// Username used for authoring commits. Must have write access to the repository.
       			// Defaults to the repository's owner.
       			//
-      			username = '${artifactory_user}'
+      			username = '${githubUser}'
 
       			// Password or OAuth token with write access to the repository.
       			//
-      			token = '${scmWriteToken}'
+      			token = '${githubToken}'
       			
       			// The tag associated with the release.
       			// If left unspecified, will use `v{{projectVersion}}`.
@@ -537,7 +629,7 @@ publishing {
       			// The target branch to pull from.
       			// Defaults to the branch pointed by HEAD.
       			//
-      			branch = 'master'
+      			branch = 'v7.0.0'
 
       			// The target branch to push to.
       			// Defaults to the branch pointed by `#{branch}`.
