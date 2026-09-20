@@ -21,8 +21,8 @@ package com.centimia.orm.ezqu;
 /**
  * This class represents a "between y and z" condition.
  *
- * @param <T> the return type of the query
- * @param <A> the incomplete condition data type
+ * @param &lt;T&gt; the return type of the query
+ * @param &lt;A&gt; the incomplete condition data type
  * 
  * @author shai
  */

@@ -13,8 +13,6 @@ package com.centimia.orm.ezqu.util;
 import java.io.Reader;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -35,11 +33,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
 import com.centimia.orm.ezqu.EzquError;
+import com.centimia.orm.ezqu.FieldConverter;
 import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 
@@ -50,19 +51,97 @@ public class Utils {
 	private static final AtomicLong COUNTER = new AtomicLong(0);
 	private static final boolean MAKE_ACCESSIBLE = true;
 
+	private static final List<FieldConverter> FIELD_CONVERTERS = List.of(
+			// 1. Assignable (no conversion needed)
+	        (v, t) -> t.isAssignableFrom(v.getClass()) ? Optional.of(v) : Optional.empty(),
+	        		
+			// 2. String (incl. Clob)
+	        (v, t) -> {
+	            if (t == String.class) {
+	                if (Clob.class.isAssignableFrom(v.getClass())) {
+	                    try (Reader r = ((Clob) v).getCharacterStream()) {
+	                        return Optional.of(IOUtils.readStringAndClose(r, -1));
+	                    }
+	                    catch (Exception e) {
+	                        return Optional.of(new EzquError(e, "Error converting CLOB to String: %s", e.getMessage()));
+	                    }
+	                }
+	                return Optional.of(v.toString());
+	            }
+	            return Optional.empty();
+	        },
+
+	        // 3. Entity / MappedSuperclass – must run **before** number conversion
+	        (v, t) -> {
+	            if (t.getAnnotation(Entity.class) != null ||
+	                t.getAnnotation(MappedSuperclass.class) != null) {
+	            	// the current value is a primary key for a related table.
+	    			try {
+	    				return Optional.of(t.getConstructor().newInstance());
+	    			}
+	    			catch (Exception e) {
+	    				return Optional.of(new EzquError("Can not convert the value " + v + " from " + v.getClass() + " to " + t));
+	    			}
+	            }
+	            return Optional.empty();
+	        },
+	        
+	        // 4. Number
+	        (v, t) -> {
+	            if (Number.class.isAssignableFrom(v.getClass())) {
+	                Number n = (Number) v;
+	                if (t == Integer.class) return Optional.of(n.intValue());
+	                if (t == Long.class)    return Optional.of(n.longValue());
+	                if (t == Double.class)  return Optional.of(n.doubleValue());
+	                if (t == Float.class)   return Optional.of(n.floatValue());
+	            }
+	            return Optional.empty();
+	        }
+		);
+	
+	/**
+	 * Utility class. Prevents instantiation.
+	 */
 	private Utils() {}
 
+	/**
+	 * Creates a thread‑safe {@link java.util.Map} backed by a {@link java.util.HashMap}.
+	 *
+	 * @param &lt;A&gt; the type of keys
+	 * @param &lt;B&gt; the type of values
+	 * @return a synchronized map instance
+	 */
 	public static <A, B> Map<A, B> newSynchronizedHashMap() {
 		HashMap<A, B> map = new HashMap<>();
 		return Collections.synchronizedMap(map);
 	}
 
+	/**
+	 * Creates a new array of the specified component type and size.
+	 *
+	 * @param &lt;T&gt; the component type
+	 * @param componentType the {@link Class} object representing the component type
+	 * @param size the length of the new array
+	 * @return a new array instance
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T[] newArray(Class<T> componentType, int size) {
 		return (T[]) Array.newInstance(componentType, size);
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes", "removal" })
+	/**
+	 * Instantiates a new object of the specified class. Handles primitive wrapper types,
+	 * common Java types (e.g., {@link java.util.Date}, {@link java.time.LocalDate}), enums,
+	 * {@link java.util.UUID}, byte arrays, and attempts to invoke a no‑arg constructor.
+	 * For unsupported types a {@link com.centimia.orm.ezqu.EzquError} is thrown.
+	 *
+	 * @param &lt;T&gt; the type to instantiate
+	 * @param clazz the {@link Class} object of the type
+	 * @return a new instance of the specified type
+	 * @throws com.centimia.orm.ezqu.EzquError if instantiation fails
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes", "removal", 
+		"java:S107", "java:S2129", "java:S106", "java:S3878" })
 	public static <T> T newObject(Class<T> clazz) {
 		// must create new instances
 		if (clazz == Integer.class) {
@@ -161,7 +240,7 @@ public class Utils {
 							return clazz.getConstructor().newInstance();
 						}
 						catch (Exception e2) {
-							// system out because logger is not available here
+							// system out because logger is not available here							
 							System.out.println(e2.getMessage());
 						}
 						finally {
@@ -189,6 +268,15 @@ public class Utils {
 		}
 	}
 
+	/**
+	 * Returns the enum constant at the specified ordinal for the given enum type.
+	 *
+	 * @param &lt;E&gt; the enum type
+	 * @param clazz the {@link Class} object of the enum
+	 * @param ordinal the ordinal of the desired constant
+	 * @return the enum constant
+	 * @throws com.centimia.orm.ezqu.EzquError if the class is not an enum
+	 */
 	public static <E> E newEnum(Class<E> clazz, int ordinal) {
 		if (clazz.isEnum()) {
 			return clazz.getEnumConstants()[ordinal];			
@@ -196,7 +284,16 @@ public class Utils {
 		throw new EzquError(clazz.getName() + ": is not an enum type"); 
 	}
 	
-	@SuppressWarnings({ "unchecked" })
+	/**
+	 * Creates a new instance of the specified enum type using {@code sun.misc.Unsafe}.
+	 * The instance is not initialized by any constructor and may contain default values.
+	 *
+	 * @param &lt;E&gt; the enum type
+	 * @param clazz the {@link Class} object of the enum
+	 * @return a new enum instance
+	 * @throws com.centimia.orm.ezqu.EzquError if the class is not an enum or instantiation fails
+	 */
+	@SuppressWarnings({ "unchecked", "java:S1191", "java:S4507" })
 	public static <E> E newEnum(Class<E> clazz) {
 		if (clazz.isEnum()) {
 			try {				
@@ -207,6 +304,7 @@ public class Utils {
 			    return (E)enumValue;
 			}
 			catch (Exception e) {
+				// nothing else we can do. no logger available here.
 				e.printStackTrace();
 			}
 		}
@@ -229,55 +327,14 @@ public class Utils {
 			Character.class.isAssignableFrom(clazz) ||
 			Temporal.class.isAssignableFrom(clazz));
 	}
-
-	public static Object convert(Object o, Class<?> targetType) {
-		if (o == null) {
-			return null;
-		}
-		Class<?> currentType = o.getClass();
-		if (targetType.isAssignableFrom(currentType)) {
-			return o;
-		}
-		if (targetType == String.class) {
-			if (Clob.class.isAssignableFrom(currentType)) {
-				Clob c = (Clob) o;
-				try {
-					Reader r = c.getCharacterStream();
-					return IOUtils.readStringAndClose(r, -1);
-				}
-				catch (Exception e) {
-					throw new EzquError(e, "Error converting CLOB to String: %s", e.getMessage());
-				}
-			}
-			return o.toString();
-		}
-		if (null != targetType.getAnnotation(Entity.class) || null != targetType.getAnnotation(MappedSuperclass.class)) {
-			// the current value is a primary key for a related table.
-			try {
-				return targetType.getConstructor().newInstance();
-			}
-			catch (Exception e) {
-				throw new EzquError("Can not convert the value " + o + " from " + currentType + " to " + targetType);
-			}
-		}
-		if (Number.class.isAssignableFrom(currentType)) {
-			Number n = (Number) o;
-			if (targetType == Integer.class) {
-				return n.intValue();
-			}
-			else if (targetType == Long.class) {
-				return n.longValue();
-			}
-			else if (targetType == Double.class) {
-				return n.doubleValue();
-			}
-			else if (targetType == Float.class) {
-				return n.floatValue();
-			}
-		}
-		throw new EzquError("Can not convert the value " + o + " from " + currentType + " to " + targetType);
-	}
 	
+	/**
+	 * Constructs a {@link java.util.UUID} from a 16‑byte array.
+	 *
+	 * @param bytes a 16‑byte array representing the UUID
+	 * @return the corresponding {@link java.util.UUID}
+	 * @throws IllegalArgumentException if the array is null or not 16 bytes long
+	 */
 	public static UUID newUUID(byte[] bytes) {
 		if (bytes == null || bytes.length != 16) {
             throw new IllegalArgumentException("Expected 16 bytes, got " + (bytes == null ? "null" : bytes.length));
@@ -288,6 +345,12 @@ public class Utils {
         return new UUID(most, least);
 	}
 	
+	/**
+	 * Converts a {@link java.util.UUID} to a 16‑byte array in big‑endian order.
+	 *
+	 * @param uuid the UUID to convert
+	 * @return a 16‑byte array representation of the UUID
+	 */
 	public static byte[] toUUIDBytes(UUID uuid) {
 		// UUID stores the value as two 64‑bit longs
         ByteBuffer bb = ByteBuffer.allocate(16);
@@ -296,6 +359,14 @@ public class Utils {
         return bb.array(); // BIG_ENDIAN (the default) → 128‑bit big‑endian
 	}
 	
+	/**
+	 * Creates an {@link java.net.InetAddress} from a byte array. Supports IPv4 (4 bytes)
+	 * and IPv6 (16 bytes). For IPv4, the array is padded to 16 bytes.
+	 *
+	 * @param bytes the byte array containing the IP address
+	 * @return the corresponding {@link java.net.InetAddress}
+	 * @throws com.centimia.orm.ezqu.EzquError if the address cannot be resolved
+	 */
 	public static InetAddress newInetAddress(byte[] bytes) {
 		try {
 			return InetAddress.getByAddress(bytes.length == 4 ? bytes : java.util.Arrays.copyOfRange(bytes, 12, 16));
@@ -305,6 +376,13 @@ public class Utils {
 		}
 	}
 	
+	/**
+	 * Converts an {@link java.net.InetAddress} to a 16‑byte array. IPv4 addresses are
+	 * padded with leading zeros to fit the 16‑byte column.
+	 *
+	 * @param inetAddr the address to convert
+	 * @return a 16‑byte array representation of the address
+	 */
 	public static byte[] toINetBytes(InetAddress inetAddr) {
 		byte[] ipBytes = inetAddr.getAddress(); // IPv4 = 4 bytes, IPv6 = 16 bytes
 
@@ -319,10 +397,45 @@ public class Utils {
 		return raw16;
 	}
 	
-	static void makeAccessible(Field field) throws Exception {
-	    field.setAccessible(true);
-	    Field modifiersField = Field.class.getDeclaredField("modifiers");
-	    modifiersField.setAccessible(true);
-	    modifiersField.setInt(field, field.getModifiers() & ~ Modifier.FINAL);
-	}
+	/**
+	 * Attempts to convert the given object to the specified target type. Supports conversion
+	 * to {@link String} (including {@link Clob} to {@link String}), numeric types
+	 * (Integer, Long, Double, Float), and returns an empty {@link Optional} if conversion
+	 * is not possible.
+	 *
+	 * @param o the object to convert
+	 * @param targetType the desired target type
+	 * @return Optional&lt;Object&gt; an {@link Optional} containing the converted value, or {@code Optional.empty()}
+	 *         if conversion could not be performed
+	 */
+	public static final FieldConverter primitiveConverter = (v, t) -> {
+		if (null == v)
+			return Optional.empty();
+
+		return IntStream.of(0, 1, 3)
+			.mapToObj(i -> FIELD_CONVERTERS.get(i).tryConvert(v, t))
+			.flatMap(Optional::stream)
+			.findFirst();
+	};
+
+	/**
+	 * Attempts to convert the given object to the specified target type. Supports conversion
+	 * to {@link String} (including {@link Clob} to {@link String}), numeric types
+	 * (Integer, Long, Double, Float), or to a an Entity type in case of Foreign Key.
+	 * Returns an empty {@link Optional} if conversion is not possible.
+	 *
+	 * @param o the object to convert
+	 * @param targetType the desired target type
+	 * @return Optional&lt;Object&gt; an {@link Optional} containing the converted value, or {@code Optional.empty()}
+	 *         if conversion could not be performed
+	 */
+	public static final FieldConverter fullConverter = (v, t) -> {
+		if (null == v)
+			return Optional.empty();
+
+		return IntStream.range(0, FIELD_CONVERTERS.size())
+			.mapToObj(i -> FIELD_CONVERTERS.get(i).tryConvert(v, t))
+			.flatMap(Optional::stream)
+			.findFirst();
+	};
 }

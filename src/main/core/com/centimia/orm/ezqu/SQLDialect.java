@@ -275,7 +275,8 @@ public interface SQLDialect {
 
 	/**
 	 * returns a String representation of the date to be embedded in the dialect query
-	 * @param temporal
+	 * 
+	 * @param date
 	 * @return String
 	 */
 	default String getQueryStyleDate(Date date) {

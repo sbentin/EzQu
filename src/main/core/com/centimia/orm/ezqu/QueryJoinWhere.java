@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * Handles where for join queries
  * 
- * @param <T> - the main entity joined to
+ * @param &lt;T&gt; - the main entity joined to
  * @author shai
  */
 public class QueryJoinWhere<T> {
@@ -32,9 +32,9 @@ public class QueryJoinWhere<T> {
 	/**
 	 * Perform an 'AND' operator in the query
 	 *
-	 * @param <A> - represents any field type that exists on Object <T>
+	 * @param &lt;A&gt; - represents any field type that exists on Object <T>
 	 * @param x - The field (gives field name) that should be attached with 'AND' to the query
-	 * @return QueryCondition
+	 * @return QueryJoinCondition
 	 */
 	public <A> QueryJoinCondition<T, A> and(A x) {
 		join.addConditionToken(ConditionAndOr.AND);
@@ -42,13 +42,27 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * Perform an 'AND' operator in the query</br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 * 
+	 * @param &lt;A&gt; - represents any field type that exists on Object <T>
+	 * @param x - The field (gives field name) that should be attached with 'AND' to the query
+	 * @return QueryJoinCondition&lt;T, A&gt;
+	 */
+	public <A> QueryJoinCondition<T, A> andWrap(A x) {
+		join.addConditionToken(ConditionAndOr.AND);
+		join.addConditionToken((s, q) -> s.appendSQL(" ("));
+		return new QueryJoinCondition<>(query, join, x);
+	}
+	
+	/**
 	 * wraps the entity object and changes the condition to support the primary key.
 	 * Useful in cases when the object holds an entity relation but you do not want to create the relation in the
 	 * fluent query.
 	 *
 	 * @see Db#asPrimaryKey(Object, Class)
 	 * @param mask
-	 * @return QueryCondition&lt;T, A&gt;
+	 * @return QueryJoinCondition&lt;T, A&gt;
 	 */
 	public <K, A> QueryJoinCondition<T, A> and(GenericMask<K, A> mask) {
 		join.addConditionToken(ConditionAndOr.AND);
@@ -56,14 +70,44 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * wraps the entity object and changes the condition to support the primary key.
+	 * Useful in cases when the object holds an entity relation but you do not want to create the relation in the
+	 * fluent query.<br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 * 
+	 * @see Db#asPrimaryKey(Object, Class)
+	 * @param mask
+	 * @return QueryJoinCondition&lt;T, A&gt;
+	 */
+	public <K, A> QueryJoinCondition<T, A> andWrap(GenericMask<K, A> mask) {
+		join.addConditionToken(ConditionAndOr.AND);
+		join.addConditionToken((s, q) -> s.appendSQL("("));
+		return new QueryJoinCondition<>(query, join, mask);
+	}
+	
+	/**
 	 * Perform an 'OR' operator in the query
 	 *
 	 * &lt;A&gt; - represents any field type that exists on Object <T>
 	 * @param x - The field (gives field name) that should be attached with 'OR' to the query
-	 * @return QueryCondition&lt;T, A&gt;
+	 * @return QueryJoinCondition&lt;T, A&gt;
 	 */
 	public <A> QueryJoinCondition<T, A> or(A x) {
 		join.addConditionToken(ConditionAndOr.OR);
+		return new QueryJoinCondition<>(query, join, x);
+	}
+	
+	/**
+	 * Perform an 'OR' operator in the query<br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 *
+	 * &lt;A&gt; - represents any field type that exists on Object <T>
+	 * @param x - The field (gives field name) that should be attached with 'OR' to the query
+	 * @return QueryJoinCondition&lt;T, A&gt;
+	 */
+	public <A> QueryJoinCondition<T, A> orWrap(A x) {
+		join.addConditionToken(ConditionAndOr.OR);
+		query.addConditionToken((s, q) -> s.appendSQL(" ("));
 		return new QueryJoinCondition<>(query, join, x);
 	}
 
@@ -73,10 +117,10 @@ public class QueryJoinWhere<T> {
 	 * fluent query.
 	 *
 	 * @see Db#asPrimaryKey(Object, Class)
-	 * @param <K>
-	 * @param <A>
+	 * @param &lt;K&gt;
+	 * @param &lt;A&gt;
 	 * @param mask
-	 * @return QueryCondition&lt;T, A&gt;
+	 * @return QueryJoinCondition&lt;T, A&gt;
 	 */
 	public <K, A> QueryJoinCondition<T, A> or(GenericMask<K, A> mask) {
 		join.addConditionToken(ConditionAndOr.OR);
@@ -84,11 +128,29 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * wraps the entity object and changes the condition to support the primary key.
+	 * Useful in cases when the object holds an entity relation but you do not want to create the relation in the
+	 * fluent query.<br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 * 
+	 * @see Db#asPrimaryKey(Object, Class)
+	 * @param &lt;K&gt;
+	 * @param &lt;A&gt;
+	 * @param mask
+	 * @return QueryJoinCondition&lt;T, A&gt;
+	 */
+	public <K, A> QueryJoinCondition<T, A> orWrap(GenericMask<K, A> mask) {
+		join.addConditionToken(ConditionAndOr.OR);
+		query.addConditionToken((s, q) -> s.appendSQL(" ("));
+		return new QueryJoinCondition<>(query, join, mask);
+	}
+	
+	/**
 	 * Create a having clause based on the column given.
 	 * <b>You can only use a single having in a select clause</b>
 	 *
 	 * @param x
-	 * @return QueryCondition<T, A>
+	 * @return QueryCondition&lt;T, A&lt;
 	 */
 	public <A> QueryJoinCondition<T, A> having(final A x) {
 		query.having(x);
@@ -96,23 +158,49 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * Create a having clause based on the column given.
+	 * <br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 *
+	 * @param x
+	 * @return QueryJoinCondition&lt;T, A&lt;
+	 */
+	public <A> QueryJoinCondition<T, A> havingWrap(final A x) {
+		query.havingWrap(x);
+		return new QueryJoinCondition<>(query, join, x);
+	}
+	
+	/**
 	 * having clause with a supported aggregate function
 	 *
 	 * @param function
 	 * @param x
-	 * @return QueryCondition<T, Long>
+	 * @return QueryJoinCondition&lt;T, Long&gt;
 	 */
 	public <A> QueryJoinCondition<T, Long> having(HavingFunctions function, final A x) {
 		query.having(function, x);
 		return new QueryJoinCondition<>(query, join, Function.ignore());
 	}
 
+	/**
+	 * having clause with a supported aggregate function<br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 * 
+	 * @param function
+	 * @param x
+	 * @return QueryJoinCondition&lt;T, Long&gt;
+	 */
+	public <A> QueryJoinCondition<T, Long> havingWrap(HavingFunctions function, final A x) {
+		query.havingWrap(function, x);
+		return new QueryJoinCondition<>(query, join, Function.ignore());
+	}
+	
     /**
      * Opens a where clause after join.
      *
-     * @param <A>
-     * @param x
-     * @return QueryCondition<T, A>
+     * @param &lt;A&gt;
+     * @param mask
+     * @return QueryCondition&lt;T, A&gt;
      */
     public <K, A> QueryCondition<T, A> where(GenericMask<K, A> mask) {
         return new QueryCondition<>(query, mask, mask.mask());
@@ -121,7 +209,7 @@ public class QueryJoinWhere<T> {
     /**
      * create a where clause based on a String Filter (String based where clause)
      * @param whereCondition
-     * @return QueryWhere<T>
+     * @return QueryWhere&lt;T&gt;
      */
     public QueryWhere<T> where(final StringFilter whereCondition) {
     	return query.where(whereCondition);
@@ -130,9 +218,9 @@ public class QueryJoinWhere<T> {
     /**
      * Opens a where clause after join.
      *
-     * @param <A>
+     * @param &lt;A&gt;
      * @param x
-     * @return QueryCondition<T, A>
+     * @return QueryCondition&lt;T, A&gt;
      */
     public <A> QueryCondition<T, A> where(A x) {
         return new QueryCondition<>(query, x);
@@ -161,7 +249,7 @@ public class QueryJoinWhere<T> {
 	/**
 	 * Perform the built query Select.
 	 *
-	 * @return List<T> can be a list of one, many or empty, never 'null'. Can be used in a primary key select, but using
+	 * @return List&lt;T&gt; can be a list of one, many or empty, never 'null'. Can be used in a primary key select, but using
 	 *         {@link #selectFirst} is advised.
 	 */
 	public List<T> select() {
@@ -181,7 +269,7 @@ public class QueryJoinWhere<T> {
 	/**
 	 * Select only distinct results in the table
 	 *
-	 * @return List<T>
+	 * @return List&lt;T&gt;
 	 */
 	public List<T> selectDistinct() {
 		return query.selectDistinct();
@@ -191,11 +279,11 @@ public class QueryJoinWhere<T> {
 	 * Performs the select of the query. Returns the results or an empty list. Does not return null. This select returns a List of a given
 	 * object that mapping is given to from the result set to the field in that object
 	 *
-	 * @param <Z>
+	 * @param &lt;Z&gt;
 	 * @param x
-	 * @return List<X>
+	 * @return List&lt;Z&gt;
 	 */
-	public <X, Z> List<X> select(Z x) {
+	public <Z> List<Z> select(Z x) {
 		return query.select(x);
 	}
 
@@ -207,12 +295,12 @@ public class QueryJoinWhere<T> {
 	 * <pre>
 	 * Db sb = [new session];
 	 * Table t = [tableDescriptor]
-	 * Map<Long, String> results = db.from(t).where(t.[getSomeField()]).is)[someValue]....selectAsMap(t.getA(), t.getB());
+	 * Map&lt;Long, String&gt; results = db.from(t).where(t.[getSomeField()]).is)[someValue]....selectAsMap(t.getA(), t.getB());
 	 * </pre>
 	 *
 	 * @param key
 	 * @param value
-	 * @return Map<K, V>
+	 * @return Map&lt;K, V&gt;
 	 */
 	public <K, V> Map<K, V> selectAsMap(K key, V value){
 		return query.selectAsMap(key, value);
@@ -224,7 +312,7 @@ public class QueryJoinWhere<T> {
 	 * @see #selectAsMap(Object, Object)
 	 * @param key
 	 * @param value
-	 * @return Map<K, V>
+	 * @return Map&lt;K, V&gt;
 	 */
 	public <K, V> Map<K, V> selectDistinctAsMap(K key, V value){
 		return query.selectDistinctAsMap(key, value);
@@ -303,24 +391,24 @@ public class QueryJoinWhere<T> {
 	/**
 	 * Performs A select similar to {@link #select(Object)} but with the 'DISTINCT' directive. Returns results or empty List. Never 'null'
 	 *
-	 * @param <Z>
+	 * @param &lt;Z&gt;
 	 * @param x
-	 * @return List<X>
+	 * @return List&lt;Z&gt;
 	 */
-	public <X, Z> List<X> selectDistinct(Z x) {
+	public <Z> List<Z> selectDistinct(Z x) {
 		return query.selectDistinct(x);
 	}
 
 	/**
 	 * Returns the 'Z' type object from the first result
 	 *
-	 * @param <X>
-	 * @param <Z>
+	 * @param &lt;X&gt;
+	 * @param &lt;Z&gt;
 	 * @param x
-	 * @return a result or null if there is no result
+	 * @return Z a result or null if there is no result
 	 */
-	public <X, Z> X selectFirst(Z x) {
-		List<X> list = query.select(x);
+	public <Z> Z selectFirst(Z x) {
+		List<Z> list = query.select(x);
 		return list.isEmpty() ? null : list.get(0);
 	}
 
@@ -328,9 +416,9 @@ public class QueryJoinWhere<T> {
      * A convenience method to get the object representing the right hand side of the join relationship only (without the need to specify the mapping between fields)
      * Returns a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
 	 *
-	 * @param <U>
+	 * @param &lt;U&gt;
 	 * @param table - the object representing the other side
-	 * @return List<U>
+	 * @return List&lt;U&gt;
 	 */
 	public <U> List<U> selectRightHandJoin(U table) {
 		return query.selectRightHandJoin(table);
@@ -353,7 +441,7 @@ public class QueryJoinWhere<T> {
      * A convenience method to get the object representing the right hand side of the join relationship only (without the need to specify the mapping between fields)
      * Returns the first result of a list of results, of the given type. The given type must be a part of a join query or an exception will be thrown
 	 *
-	 * @param <U>
+	 * @param &lt;U&gt;
 	 * @param table
 	 * @return U single object table of the right hand side.
 	 */
@@ -452,6 +540,40 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(Query<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(Query<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
+	/**
 	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
 	 * this query is runs a union query of the two queries.<br>
 	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
@@ -464,6 +586,40 @@ public class QueryJoinWhere<T> {
 	}
 
 	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(QueryWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(QueryWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
+	/**
 	 * Returns a List of the main "from" type based on a Union between the two queries.<br>
 	 * this query is runs a union query of the two queries.<br>
 	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
@@ -475,6 +631,40 @@ public class QueryJoinWhere<T> {
 		return query.union(unionQuery);
 	}
 
+	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(QueryJoinWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(QueryJoinWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return query.unionAsMap(unionQuery, key, value, unionKey, unionValue);
+	}
+	
 	/**
 	 * same as {@link #union(QueryJoinWhere)} but returns distinct results of both queries.
 	 *
@@ -598,155 +788,125 @@ public class QueryJoinWhere<T> {
 	
 	/**
 	 * Order by one or more columns in ascending order.
+	 * <b>
+	 * <b>Note:</b> You can send a {@link F} token and use a case when switch
 	 *
-	 * @param expressions the order by expressions
+	 * @param exprs the order by expressions
 	 * @return QueryJoinWhere&lt;T&gt; - the query
 	 */
-	public QueryJoinWhere<T> orderBy(Object... expressions) {
-		for (Object expr : expressions) {
-			OrderExpression<T> e = new OrderExpression<>(query, expr, false, false, false);
-			query.addOrderBy(e);
+	public QueryJoinWhere<T> orderBy(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, false, null);
+			}
 		}
 		return this;
 	}
 
 	/**
 	 * Order by one or more columns in descending order
-	 *
-	 * @param expr
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
+	 * 
+	 * @param exprs
 	 * @return QueryJoinWhere&lt;T&gt; - the query
 	 */
-	public QueryJoinWhere<T> orderByNullsFirst(Object... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0:
-				return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], false, true, false);
-				query.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(query, expr[i], false, false, false);
-					query.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], false, true, false);
-				query.addOrderBy(e);
-				return this;
+	public QueryJoinWhere<T> orderByNullsFirst(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, false, true);
 			}
 		}
+		return this;
 	}
 
 	/**
 	 * Order by one or more columns in ascending order
-	 *
-	 * @param expr
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
+	 * 
+	 * @param exprs
 	 * @return QueryJoinWhere&lt;T&gt;
 	 */
-	public QueryJoinWhere<T> orderByNullsLast(Object... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0:
-				return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], false, false, true);
-				query.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(query, expr[i], false, false, false);
-					query.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], false, false, true);
-				query.addOrderBy(e);
-				return this;
+	public QueryJoinWhere<T> orderByNullsLast(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, false, false);
 			}
 		}
+		return this;
 	}
 
 	/**
 	 * Order by in descending order
-	 *
-	 * @param expr
+	 * <b>
+	 * <b>Note:</b> You can send a {@link F} token and use a case when switch
+	 * 
+	 * @param exprs
 	 * @return QueryJoinWhere&lt;T&gt;
 	 */
-	public QueryJoinWhere<T> orderByDesc(Object... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0:
-				return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, false, false);
-				query.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(query, expr[i], false, false, false);
-					query.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, true, false);
-				query.addOrderBy(e);
-				return this;
+	public QueryJoinWhere<T> orderByDesc(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, true, null);
 			}
 		}
+		return this;
 	}
 
 	/**
 	 * Order by in descending order nulls will be first
-	 *
-	 * @param expr
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
+	 * 
+	 * @param exprs
 	 * @return QueryJoinWhere&lt;T&gt;
 	 */
-	public QueryJoinWhere<T> orderByDescNullsFirst(Object... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0:
-				return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, true, false);
-				query.addOrderBy(e);
-				return this;
-			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(query, expr[i], false, false, false);
-					query.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, true, false);
-				query.addOrderBy(e);
-				return this;
+	public QueryJoinWhere<T> orderByDescNullsFirst(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, true, true);
 			}
 		}
+		return this;
 	}
 
 	/**
 	 * Order by in descending order nulls will be last
-	 *
-	 * @param expr
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
+	 * 
+	 * @param exprs
 	 * @return QueryJoinWhere&lt;T&gt;
 	 */
-	public QueryJoinWhere<T> orderByDescNullsLast(Object... expr) {
-		int length = expr.length;
-		switch (length) {
-			case 0:
-				return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, false, true);
-				query.addOrderBy(e);
-				return this;
+	public QueryJoinWhere<T> orderByDescNullsLast(Object... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, true, false);
 			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(query, expr[i], false, false, false);
-					query.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(query, expr[length - 1], true, false, true);
-				query.addOrderBy(e);
-				return this;
+		}
+		return this;
+	}
+	
+	private void addOrderBy(Object expr, boolean desc, Boolean nullsFirst) {
+		if (query.getDb().getToken(expr) instanceof CaseWhenToken t) {
+			// this means this was a case when
+			if (desc) {
+				query.addOrderBy((stat, q) -> {
+					t.appendSQL(stat, q);
+					stat.appendSQL(" DESC");
+				});
 			}
+			else
+				query.addOrderBy(t);			
+		}
+		else {
+			OrderExpression e = new OrderExpression(expr, desc, nullsFirst);
+			query.addOrderBy(e);
 		}
 	}
 }

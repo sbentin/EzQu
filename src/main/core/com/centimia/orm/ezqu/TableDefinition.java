@@ -55,6 +55,7 @@ import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 import com.centimia.orm.ezqu.annotation.NoUpdateOnSave;
 import com.centimia.orm.ezqu.annotation.One2Many;
 import com.centimia.orm.ezqu.annotation.PrimaryKey;
+import com.centimia.orm.ezqu.annotation.Table;
 import com.centimia.orm.ezqu.annotation.Transient;
 import com.centimia.orm.ezqu.annotation.Version;
 import com.centimia.orm.ezqu.constant.Constants;
@@ -66,7 +67,7 @@ import com.centimia.orm.ezqu.util.Utils;
 /**
  * A table definition contains the index definitions of a table, the field definitions, the table name, and other meta data.
  *
- * @param <T> the table type
+ * @param &lt;T&gt; the table type
  */
 class TableDefinition<T> {
 	private static final String TO_DB = "toDb";	
@@ -84,7 +85,7 @@ class TableDefinition<T> {
 	boolean isAggregateParent = false;
 	InheritedType inheritedType = InheritedType.NONE;
 	char discriminatorValue;
-	String discriminatorColumn;	
+	String discriminatorColumn;
 
 	final Dialect dialect;
 	final String tableName;
@@ -94,6 +95,10 @@ class TableDefinition<T> {
 		this.clazz = clazz;
 		
 		String nameOfTable = clazz.getSimpleName();
+		Table tableAnnotation = clazz.getAnnotation(Table.class);
+		if (tableAnnotation != null && tableAnnotation.name() != null && !"".equals(tableAnnotation.name())) {
+			nameOfTable = tableAnnotation.name();
+		}
 		
 		boolean isEntity = clazz.getAnnotation(Entity.class) != null;
 		boolean isMappedSuperClass = clazz.getAnnotation(MappedSuperclass.class) != null;
@@ -103,41 +108,34 @@ class TableDefinition<T> {
 		Inheritance inheritance = clazz.getAnnotation(Inheritance.class);
 		Inherited inherited = clazz.getAnnotation(Inherited.class);
 		Discriminator discriminator = clazz.getAnnotation(Discriminator.class);
-		boolean isInheritance = null != inheritance || null != inherited || null != discriminator;
 		
-		if (null != inheritance) {
-			if (isEntity) {
-				this.inheritedType = inheritance.inheritedType();
+		if (null != inheritance && (isEntity || isMappedSuperClass)) {
+			// this is the root of inheritance (It might not be the root of the hierarchy)
+			this.inheritedType = inheritance.inheritedType(); // today we only need this for discriminator types
+			if (this.inheritedType == InheritedType.DISCRIMINATOR) {
 				this.discriminatorColumn = inheritance.discriminatorColumn();
 				String inheritanceTableName = inheritance.discriminatorTableName();
 				if (null != inheritanceTableName && inheritanceTableName.isBlank())
 					nameOfTable = inheritanceTableName;
 			}
-		}
-		else {
-			if (inherited != null) {
-				nameOfTable = updateInheritenceData(clazz);
-			}
-		}
+		}		
 		
 		if (null != discriminator) {
-			if (null != inheritance) {
-				// this means that we are on the root and the chosen strategy is discriminator.
-				// since we have all the info we need we can simply just get complete the discriminator value.
-				this.discriminatorValue = discriminator.discriminatorValue();
+			this.discriminatorValue = discriminator.discriminatorValue();
+			if (null != inherited) {
+				// we update the data for discriminator table name and column on this child
+				// if this is the root of inheritance this was handled 
+				nameOfTable = updateDiscriminatorData(clazz);
 			}
-			else {
-				nameOfTable = updateInheritenceData(clazz);
-			}
+			if (null == inherited && null == inheritance)
+				// this means that we declared a discriminator inheritance pattern but
+				// we are either the root, and did not declare it, or the child and not declared it
+				throw new EzquError("Table %s declared a discriminator without specifying if it is @Inherited or the root @Inheritance", nameOfTable);
+		}
+		else if (null != inherited) {
+			this.inheritedType = InheritedType.TABLE_PER_CLASS;
 		}
 		
-		if (!isInheritance) {			
-			// Handle table annotation if entity and Table annotations exist
-			com.centimia.orm.ezqu.annotation.Table tableAnnotation = clazz.getAnnotation(com.centimia.orm.ezqu.annotation.Table.class);
-			if (tableAnnotation != null && tableAnnotation.name() != null && !"".equals(tableAnnotation.name())) {
-				nameOfTable = tableAnnotation.name();
-			}
-		}
 		this.tableName = nameOfTable;
 		
 		if (isEntity || (!Modifier.isAbstract(clazz.getModifiers()) && isMappedSuperClass)) {
@@ -174,7 +172,7 @@ class TableDefinition<T> {
 		}
 
 		String relationFieldName = many2Many.relationFieldName();
-		if (relationFieldName == null || "".equals(relationFieldName))
+		if (relationFieldName == null || relationFieldName.isBlank())
 			relationFieldName = tableName;
 
 		String relationColumnName = many2Many.relationColumnName();
@@ -197,7 +195,7 @@ class TableDefinition<T> {
 				throw new EzquError("When using orderBy on a relation the field must exist on child and must have a 'Column' annotation");
 			}
 		}
-		def.direction = many2Many.direction();
+		def.descending = many2Many.descending();
 
 		if (fieldDefinition != null) {
 			fieldDefinition.relationDefinition = def;
@@ -238,7 +236,7 @@ class TableDefinition<T> {
 		}
 
 		String relationFieldName = one2ManyAnnotation.relationFieldName();
-		if (relationFieldName == null || "".equals(relationFieldName))
+		if (relationFieldName == null || relationFieldName.isBlank())
 			relationFieldName = tableName;
 
 		String relationColumnName = one2ManyAnnotation.relationColumnName();
@@ -261,7 +259,7 @@ class TableDefinition<T> {
 				throw new EzquError("When using orderBy on a relation the field must exist on child and must have a 'Column' annotation");
 			}
 		}
-		def.direction = one2ManyAnnotation.direction();
+		def.descending = one2ManyAnnotation.descending();
 		if (one2ManyAnnotation.cascadeType() != null)
 			def.cascadeType = one2ManyAnnotation.cascadeType();
 
@@ -484,13 +482,16 @@ class TableDefinition<T> {
 							throw new EzquError("Field {%s} in class {%s} is anntoated with M2O and declares a parent field {%s} which does not exist!!!", f.getName(), clazz, many2one.relationFieldName());
 						}
 						def.relationTableName = otherSideAnnotation.joinTableName();
+						if (null == def.relationTableName || def.relationTableName.isBlank())
+							throw new EzquError("Field {%s} in class {%s} is anntoated with M2O and declares a parent field {%s}. "
+									+ "Many2One should only be declared when a relation table exists!!! join table is missing.", f.getName(), clazz, many2one.relationFieldName());
 						def.dataType = new Class<?>[] {otherSide};
 
 						def.relationColumnName = otherSideAnnotation.relationFieldName();
-						if ("".equals(def.relationColumnName))
+						if (def.relationColumnName.isBlank())
 							def.relationColumnName = f.getName();
 						def.relationFieldName = otherSideAnnotation.relationColumnName();
-						if ("".equals(def.relationFieldName))
+						if (def.relationFieldName.isBlank())
 							def.relationFieldName = clazz.getSimpleName();
 
 						fieldDef.relationDefinition = def;
@@ -1045,7 +1046,7 @@ class TableDefinition<T> {
 	/**
 	 * Returns a list of primary key definitions
 	 *
-	 * @return List<FieldDefinition>
+	 * @return List&lt;FieldDefinition&gt;
 	 */
 	List<FieldDefinition> getPrimaryKeyFields() {
 		return primaryKeyColumnNames;
@@ -1074,20 +1075,28 @@ class TableDefinition<T> {
 		return false;
 	}
 	
-	private String updateInheritenceData(Class<?> clazz) {
+	private String updateDiscriminatorData(Class<?> clazz) {
 		if (null == clazz || Object.class.equals(clazz))
-			throw new EzquError("IllegalState - No Inheritance annotation found in class hierarchy for class %s", this.clazz);
+			throw new EzquError("IllegalState - No Inheritance annotation found in class hierarchy for discriminator class %s", this.clazz);
 		Inheritance inheritance = clazz.getAnnotation(Inheritance.class);
 		if (null == inheritance)
-			return updateInheritenceData(clazz.getSuperclass());
+			return updateDiscriminatorData(clazz.getSuperclass());
 		else {
 			this.inheritedType = inheritance.inheritedType();
-			this.discriminatorColumn = inheritance.discriminatorColumn();
-			String inheritanceTableName = inheritance.discriminatorTableName();
-			if (null != inheritanceTableName && inheritanceTableName.isBlank())
-				return inheritanceTableName;
-			else
-				return clazz.getSimpleName();
+			if (this.inheritedType == InheritedType.DISCRIMINATOR) {
+				this.discriminatorColumn = inheritance.discriminatorColumn();
+				String inheritanceTableName = inheritance.discriminatorTableName();
+				// if we have a special table for the hierarchy we take it here
+				if (null != inheritanceTableName && inheritanceTableName.isBlank())
+					return inheritanceTableName;
+				
+				// if we don't then this parent's table name is taken is the hierarchy table name.
+				Table tableAnnotation = clazz.getAnnotation(Table.class);
+				if (tableAnnotation != null && tableAnnotation.name() != null && !"".equals(tableAnnotation.name())) {
+					return tableAnnotation.name();
+				}
+			}
+			return clazz.getSimpleName();
 		}
 	}
 	
@@ -1097,10 +1106,10 @@ class TableDefinition<T> {
 	private Interceptor getInterceptorAnnotation(Class<?> clazz) {
 		if (null == clazz || clazz.equals(Object.class))
 			return null;
-		Interceptor interceptorAnnot = getInterceptorAnnotation(clazz.getSuperclass());
-
 		Interceptor lInterceptor = clazz.getAnnotation(Interceptor.class);
-		return null == lInterceptor ? interceptorAnnot : lInterceptor;
+		if (null == lInterceptor)
+			return getInterceptorAnnotation(clazz.getSuperclass());
+		return lInterceptor;
 	}
 	
 	private boolean getEnumType(FieldDefinition fieldDef, Column columnAnnotation) {
@@ -1124,7 +1133,7 @@ class TableDefinition<T> {
 	private <A> Field[] getAllFields(Class<A> clazz) {
 		Field[] classFields;
 		Inherited inherited = clazz.getAnnotation(Inherited.class);
-		if (inherited != null) {
+		if (null != inherited) {
 			Field[] superFields = null;
 			Class<? super A> superClazz = clazz.getSuperclass();
 			superFields = addSuperClassFields(superClazz);

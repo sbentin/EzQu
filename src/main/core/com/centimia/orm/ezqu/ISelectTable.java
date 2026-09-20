@@ -54,7 +54,7 @@ public interface ISelectTable {
 	 * Returns a Set of table IDs and their alias table name given to the joint tables. 
 	 * The ID's are given in the order of the join.
 	 * 
-	 * @return Set<Alias>
+	 * @return Set&lt;Alias&gt;
 	 */
 	public Set<Alias> getOrderedJoins();
 

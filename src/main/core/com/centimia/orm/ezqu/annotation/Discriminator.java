@@ -24,7 +24,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Use this annotation when your entity is a child type in an inheritance graph and the inheritence strategy is discriminator,
+ * Use this annotation when your entity is a child type in an inheritance graph and the inheritance strategy is discriminator,
  * to define the discriminator for this class. No need to use the {@link Inherited} annotation.
  *
  * @author Shai Bentin

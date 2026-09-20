@@ -76,10 +76,10 @@ public class EzquClassAdapter extends ClassVisitor implements Opcodes {
 		if (desc != null && desc.indexOf("com/centimia/orm/ezqu/annotation/Entity") != -1) {
 			this.isEntityAnnotationPresent = true;
 		}
-		if (desc != null && desc.indexOf("com/centimia/orm/ezqu/annotation/MappedSuperclass") != -1){
+		if (desc != null && desc.indexOf("com/centimia/orm/ezqu/annotation/MappedSuperclass") != -1) {
 			this.isMappedSupperClass = true;
 		}
-		if (desc != null && desc.indexOf("com/centimia/orm/ezqu/annotation/Inherited") != -1){
+		if (desc != null && desc.indexOf("com/centimia/orm/ezqu/annotation/Inherited") != -1) {
 			this.isInherited  = true;
 		}
 		return super.visitAnnotation(desc, visible);
@@ -310,7 +310,7 @@ public class EzquClassAdapter extends ClassVisitor implements Opcodes {
 	 * <br><b><div style="background:lightgray;color:black">
 	 * <pre>
 	 * public [entityType] [getterName]() {
-	 *	if ([field] != null && [field].isLazy) {
+	 *	if ([field] != null &amp;&amp; [field].isLazy) {
 	 *		try {
 	 *			if (null == db)
 	 *				return null;
@@ -510,11 +510,16 @@ public class EzquClassAdapter extends ClassVisitor implements Opcodes {
 	}
 	
 	/**
-	 * Returns true when the adapter has dealt with a EzQu annotated class and altered it.
-	 * @return boolean
+	 * Returns AugmentationType not NONE when the adapter has dealt with a EzQu annotated class and altered it.
+	 * @return AugmentationType
 	 */
-	public boolean isEzquAnnotated() {
-		return isEntityAnnotationPresent || isMappedSupperClass;
+	public AugmentationType isEzquAnnotated() {
+		if (isEntityAnnotationPresent)
+			return AugmentationType.ENTITY;
+		else if (isMappedSupperClass)
+			return AugmentationType.SUPER_CLASS;
+		else
+			return AugmentationType.NONE;
 	}
 	
 	/**

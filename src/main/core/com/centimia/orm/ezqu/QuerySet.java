@@ -21,16 +21,16 @@ package com.centimia.orm.ezqu;
 /**
  * Represents the 'SET' command type within an update query.
  *
- * @param <T> - The type of object
- * @param <F> - The type of column being set
+ * @param &lt;T&gt; - The type of object
+ * @param &lt;C&gt; - The type of column being set
  * @author Shai Bentin
  */
-public class QuerySet<T, F> {
+public class QuerySet<T, C> {
 	private Query<T> query;
-    private F x;
-    private F value;
+    private C x;
+    private C value;
 
-	QuerySet(Query<T> query, F x, F v) {
+	QuerySet(Query<T> query, C x, C v) {
 		this.query = query;
 		this.x = x;
 		this.value = v;
@@ -63,10 +63,10 @@ public class QuerySet<T, F> {
 	/**
 	 * Use to add more field sets in an update query.
 	 *
-	 * @param <A>
+	 * @param &lt;A&gt;
 	 * @param x
 	 * @param v
-	 * @return QuerySet<T, A>
+	 * @return QuerySet&lt;T, A&gt;
 	 */
 	public <A> QuerySet<T, A> and(A x, A v){
 		query.addUpdateToken(new SetDirective<>(this.x, value));

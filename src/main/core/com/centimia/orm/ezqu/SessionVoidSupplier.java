@@ -20,7 +20,6 @@ public interface SessionVoidSupplier {
 
 	/**
 	 * @param session - the session which runs this work
-	 * @return T
 	 */
 	void execute(Db session);
 }

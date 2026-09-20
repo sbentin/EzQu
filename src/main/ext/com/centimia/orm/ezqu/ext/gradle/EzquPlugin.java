@@ -20,7 +20,11 @@ package com.centimia.orm.ezqu.ext.gradle;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.compile.JavaCompile;
 
 /**
  * 
@@ -33,17 +37,21 @@ public class EzquPlugin implements Plugin<Project> {
 		// 'apply' is idempotent; it won't crash if already applied.
 		project.getPlugins().apply("java-library");
 
-		project.getTasks().register("ezquPostCompile", PostCompileTask.class, task -> {
+		JavaPluginExtension javaExt = project.getExtensions().getByType(JavaPluginExtension.class);
+		SourceSet mainSourceSet = javaExt.getSourceSets().getByName("main");
+		TaskProvider<JavaCompile> compileJava = project.getTasks().named("compileJava", JavaCompile.class);
+		
+		TaskProvider<PostCompileTask> ezquPostCompile =project.getTasks().register("ezquPostCompile", PostCompileTask.class, task -> {
 			// Wire the Java classes (Fallback)
-			JavaPluginExtension javaExt = project.getExtensions().getByType(JavaPluginExtension.class);
-			task.getDefaultClasses().from(javaExt.getSourceSets().getByName("main").getOutput().getClassesDirs());
+			task.getInputClasses().from(compileJava.flatMap(JavaCompile::getDestinationDirectory));
 			
-			task.dependsOn(project.getTasks().named("compileJava"));
-			
-		    // If we are using the default classes, we must run AFTER java compilation.
-		    // The 'from' above usually handles the dependency automatically, 
-		    // but explicit 'mustRunAfter' can be safer if you encounter race conditions.
-		    task.mustRunAfter(project.getTasks().named("compileJava"));
+			// Set the target output directory
+            task.getOutputDir().convention(
+                project.getLayout().getBuildDirectory().dir("transformed-classes")
+            );
 		});
+		
+		ConfigurableFileCollection classesDirs = (ConfigurableFileCollection) mainSourceSet.getOutput().getClassesDirs();
+        classesDirs.setFrom(ezquPostCompile.flatMap(PostCompileTask::getOutputDir));
 	}
 }

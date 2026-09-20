@@ -16,9 +16,9 @@ package com.centimia.orm.ezqu;
  * a JTA implementation of the transaction strategy.
  * We use a strategy so that we don't need to include JTA in our dependency code unless the user wants to
  */
-import javax.transaction.TransactionManager;
-import javax.transaction.Status;
-import javax.transaction.SystemException;
+import jakarta.transaction.TransactionManager;
+import jakarta.transaction.Status;
+import jakarta.transaction.SystemException;
 
 public class JtaTransactionStrategy implements TransactionStrategy {
     private final TransactionManager tm;

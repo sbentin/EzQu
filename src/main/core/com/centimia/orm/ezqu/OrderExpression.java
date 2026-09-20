@@ -13,24 +13,20 @@ package com.centimia.orm.ezqu;
 /**
  * An expression to order by in a query.
  *
- * @param <T> the query data type
+ * @param &lt;T&gt; the query data type
  */
-class OrderExpression<T> {
-    private Query<T> query;
+class OrderExpression implements Token {
     private Object expression;
     private boolean desc;
-    private boolean nullsFirst;
-    private boolean nullsLast;
+    private Boolean nullsFirst;
 
-    OrderExpression(Query<T> query, Object expression, boolean desc, boolean nullsFirst, boolean nullsLast) {
-        this.query = query;
+    OrderExpression(Object expression, boolean desc, Boolean nullsFirst) {
         this.expression = expression;
         this.desc = desc;
         this.nullsFirst = nullsFirst;
-        this.nullsLast = nullsLast;
     }
 
-	void appendSQL(SQLStatement stat) {
+	public void appendSQL(SQLStatement stat, Query<?> query) {
 	    boolean simpleDialect = query.getDb().factory.dialect.ordinal() <= 1;
 	    
 	    if (simpleDialect) {
@@ -39,23 +35,30 @@ class OrderExpression<T> {
 	        query.appendSQL(stat, expression, false, null);
 	        stat.appendSQL(desc ? " DESC" : " ASC");
 
-	        if (desc && nullsFirst) {
-	            stat.appendSQL(" NULLS FIRST");
-	        }
-	        else if (!desc && nullsLast) {
-	            stat.appendSQL(" NULLS LAST");
+	        if (null != nullsFirst) {
+	        	// if nullsFirst is null then it means we want the default ordering of the underlying db
+		        if (Boolean.TRUE.equals(nullsFirst)) {
+		            stat.appendSQL(" NULLS FIRST");
+		        }
+		        else {
+		            stat.appendSQL(" NULLS LAST");
+		        }
 	        }
 	        return;
 	    }
 
 	    // Complex dialects: emulate NULLS FIRST/LAST with CASE expressions.
-	    boolean needsCase = (desc && nullsFirst) || (!desc && nullsLast);
+	    boolean needsCase = null != nullsFirst;
 	    if (needsCase) {
-	        // NULL-first descending or NULL-last ascending → prepend CASE ordering
-	        stat.appendSQL("(CASE WHEN " + expression + " IS NULL THEN 0 ELSE 1 END)");
-
-	        // If this CASE is not the final sort key, add comma + space
-	        stat.appendSQL(!desc ? " DESC, " : ", ");
+	    	stat.appendSQL("(CASE WHEN ");
+	    	query.appendSQL(stat, expression, false, null);
+	    	
+	    	if (Boolean.TRUE.equals(nullsFirst))
+		        // NULL-first ascending
+		        stat.appendSQL(" IS NULL THEN 0 ELSE 1 END)");
+	    	else
+	    		// NULL-last ascending
+		        stat.appendSQL(" IS NULL THEN 1 ELSE 0 END)");
 	    }
 
 	    // Now the actual expression ordering

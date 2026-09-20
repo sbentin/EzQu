@@ -33,6 +33,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Opcodes;
 
+import com.centimia.orm.ezqu.ext.asm.AugmentationType;
 import com.centimia.orm.ezqu.ext.asm.EzquClassAdapter;
 import com.centimia.orm.ezqu.ext.asm.SafeClassWriter;
 
@@ -52,7 +53,7 @@ public class CommonAssembly {
 		int ignored = 0;
 		for (File classFile: files) {
 			try {
-				if (assembleFile(classFile)) {
+				if (assembleFile(classFile).ordinal() > 0) {
 					successReport.append(String.format("SUCCESS -- %s%n", classFile));
 					success++;
 				}
@@ -77,20 +78,24 @@ public class CommonAssembly {
 	 * @return boolean - true when successfully augmented a file
 	 * @throws IOException
 	 */
-	public static boolean assembleFile(File classFile) throws IOException {
+	@SuppressWarnings("java:S4042")
+	public static AugmentationType assembleFile(File classFile) throws IOException {
 		FileInputStream fis = new FileInputStream(classFile);
-        byte[] b = assembleFile(fis);       
+		AssemblyContainer c = assembleFile(fis);
         
-        if (b != null && classFile.delete()) {
-    		classFile.createNewFile();
-            try (FileOutputStream fos = new FileOutputStream(classFile)) {
-            	fos.write(b);
-            	fos.flush();
-            }
-            return true;
+        if (c != null && classFile.delete()) {
+    		if (classFile.createNewFile()) {
+	            try (FileOutputStream fos = new FileOutputStream(classFile)) {
+	            	fos.write(c.bytes);
+	            	fos.flush();
+	            }
+	            return c.augmentationType;
+    		}
+    		else
+    			throw new IOException("Failed to create new file for augmented class: " + classFile.getAbsolutePath());
         }
 
-        return false;
+        return AugmentationType.NONE;
 	}
 
 	/**
@@ -101,7 +106,15 @@ public class CommonAssembly {
 	 * @return byte[]
 	 * @throws IOException
 	 */
-	public static byte[] assembleFile(InputStream is) throws IOException {
+	public static byte[] assembleFileFromStream(InputStream is) throws IOException {
+		AssemblyContainer c = assembleFile(is);
+		if (c != null) {
+			return c.bytes;
+		}
+		return null;
+	}
+	
+	private static AssemblyContainer assembleFile(InputStream is) throws IOException {
 		try (is) {
 			byte[] fileBytes = is.readAllBytes();
 			if (!isAlreadyAugmented(fileBytes))	{	
@@ -111,8 +124,11 @@ public class CommonAssembly {
 				EzquClassAdapter ezquClassAdapter = new EzquClassAdapter(Opcodes.ASM9, cw);
 				cr.accept(ezquClassAdapter, 0);
 				
-				if (ezquClassAdapter.isEzquAnnotated()) {
-					return cw.toByteArray();
+				if (ezquClassAdapter.isEzquAnnotated().ordinal() > 0) {
+					return new AssemblyContainer() {{
+						bytes = cw.toByteArray();
+						augmentationType = ezquClassAdapter.isEzquAnnotated();
+					}};
 				}
 			}
 			return null;
@@ -157,5 +173,10 @@ public class CommonAssembly {
 			else
 				files.add(file);
 		}
+	}
+	
+	private static class AssemblyContainer {
+		byte[] bytes;
+		AugmentationType augmentationType;
 	}
 }

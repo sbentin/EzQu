@@ -23,7 +23,7 @@ import com.centimia.orm.ezqu.util.Utils;
 /**
  * This class represents a table in a query.
  *
- * @param <T> the table class
+ * @param &lt;T&gt; the table class
  */
 class SelectTable<T> implements ISelectTable {
 

@@ -53,7 +53,7 @@ public class ClassUtils {
 	/**
 	 * returns the Object Type class of a primitive class type. i.e. int.class returns Integer.class
 	 * @param clazz
-	 * @return Class<?>
+	 * @return Class&lt;?&gt;
 	 */
 	public static Class<?> getWrapperClass(Class<?> clazz) {
 		if (clazz.isPrimitive())
@@ -63,7 +63,7 @@ public class ClassUtils {
 	
 	/**
 	 * find a field in a class
-	 * @param <A>
+	 * @param &lt;A&gt;
 	 * @param clazz
 	 * @param fieldName
 	 * @return Field

@@ -16,7 +16,7 @@ import com.centimia.orm.ezqu.annotation.MappedSuperclass;
 /**
  * A condition contains one or two operands and a compare operation.
  *
- * @param <A> the operand type
+ * @param &lt;A&gt; the operand type
  */
 class Condition<A> implements Token {
     CompareType compareType;

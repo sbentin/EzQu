@@ -17,9 +17,9 @@ class RelationDefinition {
 	 * The name of the column used for the relation. When O2M relationship and no relation table is used this value is the field holding
 	 * the other side relation
 	 */
-	String relationColumnName;
+	String relationColumnName = "";
 	/** The name of the field used for holding the other side mapping. */
-	String relationFieldName;
+	String relationFieldName = "";
 	/**
 	 * When true, related children will be loaded with the object data, otherwise they will load when the getter function is used.
 	 * 'false' is default
@@ -34,5 +34,5 @@ class RelationDefinition {
 	/** the name of a column in the other side of the relation that determines the order of the response */
 	String orderByColumn = null;
 	/** the direction of order by. Default is ASC" */
-	String direction = "ASC";
+	boolean descending = false;
 }

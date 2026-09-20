@@ -11,17 +11,8 @@
 package com.centimia.orm.ezqu;
 
 /**
- * supplies an EzquSession query result
- * 
- * @param &lt;T&gt; the object being returned from the supplier
- * @author shai
+ * To specifically identify a case when token
  */
-@FunctionalInterface
-public interface SessionSupplier<T> {
+public interface CaseWhenToken extends Token {
 
-	/**
-	 * @param session - the session which runs this work
-	 * @return T
-	 */
-	T get(Db session);
 }

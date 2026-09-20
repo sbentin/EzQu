@@ -25,7 +25,7 @@ import com.centimia.orm.ezqu.util.Utils;
 /**
  * This class represents a query.
  *
- * @param <T> the return type (entity)
+ * @param &lt;T&gt; the return type (entity)
  * @author shai
  */
 public class Query<T> {
@@ -37,7 +37,7 @@ public class Query<T> {
     private ArrayList<Token> setTokens = new ArrayList<>();
     private ArrayList<SelectTable< ? >> joins = new ArrayList<>();
     private final IdentityHashMap<Object, SelectColumn<T>> aliasMap = new IdentityHashMap<>();
-    private ArrayList<OrderExpression<T>> orderByList = new ArrayList<>();
+    private ArrayList<Token> orderByList = new ArrayList<>();
     private LimitToken limit = null;
     private OffsetToken offset = null;
     private Object[] groupByExpressions;
@@ -141,6 +141,40 @@ public class Query<T> {
     }
 
 	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(Query<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery, key, value, unionKey, unionValue, false);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(Query<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery, key, value, unionKey, unionValue, true);
+	}
+	
+	/**
      * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
      * this query is runs a union query of the two queries.<br>
 	 * <b>Note:</b> All union query rules apply here. The queries must return the same amount of columns and have the same column types and names.
@@ -185,6 +219,39 @@ public class Query<T> {
 		return union(unionQuery.query, true);
 	}
 
+	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(QueryWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery.query, key, value, unionKey, unionValue, false);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(QueryWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery.query, key, value, unionKey, unionValue, true);
+	}
 	
 	/**
      * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
@@ -193,11 +260,10 @@ public class Query<T> {
 	 *
 	 * @param unionQuery
 	 * @param x - the type to return
-	 * @return List&lt;X&gt;
+	 * @return List&lt;Z&gt;
 	 */
-	@SuppressWarnings("unchecked")
-	public <U, X, Z> List<X> union(QueryWhere<U> unionQuery, Z x) {
-		return union(unionQuery.query, (X)x, false);
+	public <U, Z> List<Z> union(QueryWhere<U> unionQuery, Z x) {
+		return union(unionQuery.query, x, false);
     }
 
 	/**
@@ -206,7 +272,7 @@ public class Query<T> {
 	 * @param unionQuery
 	 * @return List&lt;T&gt;
 	 */
-	public <U, X> List<X> unionDistinct(QueryWhere<U> unionQuery, X x) {
+	public <U, Z> List<Z> unionDistinct(QueryWhere<U> unionQuery, Z x) {
 		return union(unionQuery.query, x, true);
     }
 
@@ -232,6 +298,40 @@ public class Query<T> {
 		return union(unionQuery.query, true);
 	}
 
+	/**
+	 * Returns a Map made up of a single union query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMap(QueryJoinWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery.query, key, value, unionKey, unionValue, false);
+	}
+	
+	/**
+	 * Returns a Map made up of a single union query applying distinct to each query
+	 * 
+	 * @param &lt;U&gt;
+	 * @param &lt;K&gt;
+	 * @param &lt;V&gt;
+	 * @param unionQuery
+	 * @param key - the field in the main query that functions as key
+	 * @param value - the field in the main query that functions as value
+	 * @param unionKey - the field in the union query that functions as key
+	 * @param unionValue - the field in the union query that functions as value
+	 * @return Map&lt;K, V&gt;
+	 */
+	public <U, K, V> Map<K, V> unionAsMapDistinct(QueryJoinWhere<U> unionQuery, K key, V value, K unionKey, V unionValue) {
+		return unionAsMap(unionQuery.query, key, value, unionKey, unionValue, true);
+	}
+	
 	/**
      * Returns a list of the given type (x). The type must be a new type, not one of the table's fields.
      * this query is runs a union query of the two queries.<br>
@@ -263,7 +363,7 @@ public class Query<T> {
 	 * <pre>
 	 * Db db = [new session];
 	 * Table t = [tableDescriptor]
-	 * Map<Long, String> results = db.from(t).where(t.[getSomeField()]).is)[someValue]....selectAsMap(t.getA(), t.getB());
+	 * Map&lt;Long, String&gt; results = db.from(t).where(t.[getSomeField()]).is)[someValue]....selectAsMap(t.getA(), t.getB());
 	 * </pre>
 	 *
 	 * @param key
@@ -321,9 +421,8 @@ public class Query<T> {
 	 * @param x
 	 * @return Z
 	 */
-    @SuppressWarnings("unchecked")
-    public <X, Z> X selectFirst(Z x) {
-        List<X> list = (List<X>) select(x);
+    public <Z> Z selectFirst(Z x) {
+        List<Z> list = select(x);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -480,11 +579,10 @@ public class Query<T> {
 	 * @param &lt;X&gt; - The type of object returned after the specific object is built from results.
 	 * @param &lt;Z&gt; - The type of the Object used for describing the query
 	 * @param x - A descriptor instance of type Z
-	 * @return List&lt;X&gt;
+	 * @return List&lt;Z&gt;
 	 */
-    @SuppressWarnings("unchecked")
-	public <X, Z> List<X> selectDistinct(Z x) {
-        return select((X)x, true);
+	public <Z> List<Z> selectDistinct(Z x) {
+        return select(x, true);
     }
 
     /**
@@ -495,9 +593,8 @@ public class Query<T> {
 	 * @param x
 	 * @return List&lt;Z&gt; results
 	 */
-    @SuppressWarnings("unchecked")
-	public <X, Z> List<X> select(Z x) {
-        return select((X)x, false);
+	public <Z> List<Z> select(Z x) {
+        return select(x, false);
     }
 
     /**
@@ -617,7 +714,7 @@ public class Query<T> {
 	 *
 	 * @param &lt;A&gt;
 	 * @param x
-	 * @return QueryCondition<T, A>
+	 * @return QueryCondition&lt;T, A&gt;
 	 */
     public <A> QueryCondition<T, A> where(A x) {
         return new QueryCondition<>(this, x);
@@ -695,64 +792,104 @@ public class Query<T> {
 	
     /**
 	 * Order by a number of columns.
+	 * <b>
+	 * <b>Note:</b> You can send a {@link F} token and use a case when switch
 	 *
-	 * @param expressions the columns
+	 * @param exprs the columns
 	 * @return the query
 	 */
-	public Query<T> orderBy(Object ... expressions) {
-		for (Object expr : expressions) {
-			OrderExpression<T> e = new OrderExpression<>(this, expr, false, false, false);
-			this.addOrderBy(e);
+	public Query<T> orderBy(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr : exprs) {
+				addOrderBy(expr, false, null);
+			}
 		}
 		return this;
 	}
 
 	/**
 	 * Order by one or more columns in descending order
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
 	 * 
-	 * @param expr
+	 * @param exprs
 	 * @return QueryWhere&lt;T&gt; - the query
 	 */
-	public Query<T> orderByNullsFirst(Object ... expr) {
-		return orderBy(false, true, false, expr);
+	public Query<T> orderByNullsFirst(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr: exprs) {
+				addOrderBy(expr, false, true);
+			}
+		}
+		return this;
 	}
 
 	/**
 	 * Order by one or more columns in ascending order
-	 * @param expr
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
+	 * 
+	 * @param exprs
 	 * @return QueryWhere&lt;T&gt;
 	 */
-	public Query<T> orderByNullsLast(Object ... expr) {
-		return orderBy(false, false, true, expr);
+	public Query<T> orderByNullsLast(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr: exprs) {
+				addOrderBy(expr, false, false);
+			}
+		}
+		return this;
 	}
 
 	/**
 	 * Descending order by a single given column
+	 * <b>
+	 * <b>Note:</b> You can send a {@link F} token and use a case when switch
 	 *
-	 * @param expr
+	 * @param exprs
 	 * @return Query
 	 */
-	public Query<T> orderByDesc(Object ... expr) {
-		return orderBy(true, false, false, expr);
+	public Query<T> orderByDesc(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr: exprs) {
+				addOrderBy(expr, true, null);
+			}
+		}
+		return this;
 	}
 
 	/**
 	 * Order by in descending order nulls will be first
+	 * <p> 
+	 * <b>Important</b> Case / When order by clause will never return null, thus, using
+	 * this method for such is redundant and not supported.
 	 * 
-	 * @param expr
+	 * @param exprs
 	 * @return Query&lt;T&gt;
 	 */
-	public Query<T> orderByDescNullsFirst(Object ... expr) {
-		return orderBy(true, true, false, expr);
+	public Query<T> orderByDescNullsFirst(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr: exprs) {
+				addOrderBy(expr, true, true);
+			}
+		}
+		return this;
 	}
 
 	/**
 	 * Order by one or more columns in ascending order
-	 * @param expr
+	 * @param exprs
 	 * @return QueryWhere&lt;T&gt;
 	 */
-	public Query<T> orderByDescNullsLast(Object ... expr) {
-		return orderBy(true, false, true, expr);
+	public Query<T> orderByDescNullsLast(Object ... exprs) {
+		if (null != exprs) {
+			for (Object expr: exprs) {
+				addOrderBy(expr, true, false);
+			}
+		}
+		return this;
 	}
 
 	/**
@@ -769,6 +906,21 @@ public class Query<T> {
 	}
 
 	/**
+	 * Create a having clause based on the column given.
+	 * <br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 *
+	 * @param x
+	 * @return QueryCondition&lt;T, A&gt;
+	 */
+	public <A> QueryCondition<T, A> havingWrap(final A x) {
+		HavingToken conditionCode = new HavingToken();
+		conditions.add((s, q) -> s.appendSQL(" ("));
+		conditions.add(conditionCode);
+		return new QueryCondition<>(this, x);
+	}
+	
+	/**
 	 * having clause with a supported aggregate function
 	 * 
 	 * @param function
@@ -783,6 +935,22 @@ public class Query<T> {
 	}
 
 	/**
+	 * having clause with a supported aggregate function<br>
+	 * Adds a '(' after the 'and' operator. Close with {@link #endWrap()}
+	 * 
+	 * @param function
+	 * @param x
+	 * @return QueryCondition&lt;T, Long&gt;
+	 */
+	public <A> QueryCondition<T, Long> havingWrap(HavingFunctions function, final A x) {
+		HavingToken conditionCode = new HavingToken();
+		conditions.add((s, q) -> s.appendSQL(" ("));
+		conditions.add(conditionCode);
+		conditions.add(new Function(function.name(), x));
+		return new QueryCondition<>(this, Function.ignore());
+	}
+	
+	/**
 	 * Group By ordered objects
 	 * 
 	 * @param groupBy
@@ -795,7 +963,7 @@ public class Query<T> {
 
 	/**
 	 * adds a limit to the query<br>
-	 * <b>Note:</b> You can not use 'limit' and 'offset' methods at the same time use {@link#offet(int, int)} instead!
+	 * <b>Note:</b> You can not use 'limit' and 'offset' methods at the same time use {@link #offset(int, int)} instead!
 	 * 
 	 * @param limitNum
 	 * @return Query&lt;T&gt;
@@ -808,7 +976,6 @@ public class Query<T> {
 	/**
 	 * adds an offset with <b>no limit</b> to the query
 	 * 
-	 * @param limitNum
 	 * @param offsetNum
 	 * @return Query&lt;T&gt;
 	 */
@@ -982,11 +1149,11 @@ public class Query<T> {
         if (!orderByList.isEmpty()) {
             stat.appendSQL(" ORDER BY ");
             int i = 0;
-            for (OrderExpression o : orderByList) {
+            for (Token o : orderByList) {
                 if (i++ > 0) {
                     stat.appendSQL(", ");
                 }
-                o.appendSQL(stat);
+                o.appendSQL(stat, this);
                 stat.appendSQL(" ");
             }
         }
@@ -1011,7 +1178,7 @@ public class Query<T> {
         return aliasMap.get(obj);
     }
 
-    void addOrderBy(OrderExpression<T> expr) {
+    void addOrderBy(Token expr) {
         orderByList.add(expr);
     }
 
@@ -1088,6 +1255,52 @@ public class Query<T> {
     	return result;
     }
 
+    @SuppressWarnings("unchecked")
+	private <U, K, V> Map<K, V> unionAsMap(Query<U> unionQuery, K key, V value, K unionKey, V unionValue, boolean distinct) {
+    	if (null == unionQuery) {
+			return this.selectSimpleAsMap(key, value, distinct);
+    	}
+    	SQLStatement selectList = new SQLStatement(db);
+        appendSQL(selectList, key, false, null);
+        selectList.appendSQL(", ");
+        appendSQL(selectList, value, false, null);
+        
+        SQLStatement unionSelectList = new SQLStatement(db);
+        appendSQL(unionSelectList, unionKey, false, null);
+        selectList.appendSQL(", ");
+        appendSQL(unionSelectList, unionValue, false, null);
+        
+        Map<K, V> result = new HashMap<>();
+        selectList = prepare(selectList, distinct);
+        
+        selectList.executeUnion(unionQuery.prepare(unionSelectList, distinct), rs -> {
+        	while (rs.next()) {
+                try {
+                	K theKey = null;
+                	V theValue = null;
+                	if (key.getClass().isEnum())
+                		theKey = (K)handleAsEnum(key.getClass(), rs.getObject(1));
+                	else {
+                		Types type = Types.valueOf(key.getClass().getSimpleName().toUpperCase());
+                		theKey = (K) db.factory.dialect.getValueByType(type, rs, 1);
+                	}
+                	if (value.getClass().isEnum())
+                		theValue = (V)handleAsEnum(value.getClass(), rs.getObject(2));
+                	else {
+                		Types type = Types.valueOf(value.getClass().getSimpleName().toUpperCase());
+                		theValue = (V) db.factory.dialect.getValueByType(type, rs, 2);
+                	}
+                    result.put(theKey, theValue);
+                }
+                catch (Exception e) {
+                    throw new EzquError(e, e.getMessage());
+                }
+            }
+        	return null;
+        });
+        return result;
+    }
+    
     private <U, X> List<X> union(Query<U> unionQuery, X x, boolean distinct) {
     	if (null != x){
 			Class<?> clazz = x.getClass();
@@ -1199,7 +1412,7 @@ public class Query<T> {
         	clazz = clazz.getSuperclass();
         return select((Class<Z>) clazz,  x, distinct);
     }
-
+    
     @SuppressWarnings("unchecked")
 	private <K, V> Map<K, V> selectSimpleAsMap(K key, V value, boolean distinct) {
     	SQLStatement selectList = new SQLStatement(db);
@@ -1215,7 +1428,7 @@ public class Query<T> {
                 	if (key.getClass().isEnum())
                 		theKey = (K)handleAsEnum(key.getClass(), rs.getObject(1));
                 	else {
-                		Types type = Types.valueOf(value.getClass().getSimpleName().toUpperCase());
+                		Types type = Types.valueOf(key.getClass().getSimpleName().toUpperCase());
                 		theKey = (K) db.factory.dialect.getValueByType(type, rs, 1);
                 	}
                 	if (value.getClass().isEnum())
@@ -1248,27 +1461,24 @@ public class Query<T> {
         });
         return result;
     }
-
-    private Query<T> orderBy(boolean desc, boolean nullsFirst, boolean nullsLast, Object ... expr) {
-    	int length = expr.length;
-		switch (length) {
-			case 0: return this;
-			case 1: {
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], desc, nullsFirst, nullsLast);
-				this.addOrderBy(e);
-				return this;
+    
+    private void addOrderBy(Object expr, boolean desc, Boolean nullsFirst) {
+		if (db.getToken(expr) instanceof CaseWhenToken t) {
+			// this means this was a case when
+			if (desc) {
+				this.addOrderBy((stat, q) -> {
+					t.appendSQL(stat, q);
+					stat.appendSQL(" DESC");
+				});
 			}
-			default: {
-				for (int i = 0; i < length - 1; i++) {
-					OrderExpression<T> e = new OrderExpression<>(this, expr[i], false, false, false);
-					this.addOrderBy(e);
-				}
-				OrderExpression<T> e = new OrderExpression<>(this, expr[length - 1], desc, nullsFirst, nullsLast);
-				this.addOrderBy(e);
-				return this;
-			}
+			else
+				this.addOrderBy(t);
 		}
-    }
+		else {
+			OrderExpression e = new OrderExpression(expr, desc, nullsFirst);
+			this.addOrderBy(e);
+		}
+	}
     
     private <Z> List<ColumnCount<Z>> selectCount(Z x, int sort) {
     	Class<?> clazz = x.getClass();

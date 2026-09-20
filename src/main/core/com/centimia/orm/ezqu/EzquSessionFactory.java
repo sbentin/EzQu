@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import javax.sql.CommonDataSource;
-import javax.transaction.TransactionManager;
+import jakarta.transaction.TransactionManager;
 
 /**
  * This factory creates persistence session ({@link Db}) which work against a single defined data source. There should be only one "Singleton" EzquSession
@@ -208,7 +208,7 @@ public final class EzquSessionFactory {
 	 * Runs work inside a thread bound session and returns a value.<br>
 	 * If a db session already exists it will use the existing, if not it will create a new one.
 	 * 
-	 * @param <T>
+	 * @param &lt;T&gt;
 	 * @param supplier
 	 * @param options -use only options from {@link SessionOptions}
 	 * @return T
@@ -288,7 +288,7 @@ public final class EzquSessionFactory {
 
     /**
      * Get the table definition. The table must be defined in the factory at this point
-     * @param <T>
+     * @param &lt;T&gt;
      * @param clazz
      * @return
      */
@@ -303,10 +303,10 @@ public final class EzquSessionFactory {
      * we check for an existing map. If it exist we return the found map (which means it is already configured)
      * and does not need reconfiguring.
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param clazz
      * @param def
-     * @return TableDefinition<T> - when the definition is already in the map, or 'null' when the definition is new and is put into the map.
+     * @return TableDefinition&lt;T&gt; - when the definition is already in the map, or 'null' when the definition is new and is put into the map.
      */
     <T> TableDefinition<T> updateTableDefinition(Class<T> clazz, Db db, boolean allowCreate){
     	synchronized (classMap) {
@@ -442,11 +442,11 @@ public final class EzquSessionFactory {
     /*
      * Define a table from class on underlying db.
      * 
-     * @param <T> - the class type to be defined
+     * @param &lt;T&gt; - the class type to be defined
      * @param clazz - the class type to be defined
      * @param db - the Db session this is done under. Note that if definition
      * @param allowCreate
-     * @return TableDefinition<T>
+     * @return TableDefinition&lt;T&gt;
      */
     static <T> TableDefinition<T> define(Class<T> clazz, Db db, boolean allowCreate) {
         // first non blocking operation. After the definition exists we just return

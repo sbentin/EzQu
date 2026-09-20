@@ -13,7 +13,7 @@ package com.centimia.orm.ezqu;
 /**
  * This class represents a column of a table in a query.
  *
- * @param <T> the table data type
+ * @param &lt;T&gt; the table data type
  */
 class SelectColumn<T> {
     private SelectTable<T> selectTable;

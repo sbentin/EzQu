@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2030 Shai Bentin & Centimia Ltd..
+ * Copyright (c) 2020-2024 Shai Bentin & Centimia Inc..
  * All rights reserved.  Unpublished -- rights reserved
  *
  * Use of a copyright notice is precautionary only, and does
@@ -10,19 +10,11 @@
  * REPRODUCTION IS PROHIBITED WITHOUT THE PRIOR EXPRESS
  * WRITTEN PERMISSION OF Shai Bentin & CENTIMIA, INC.
  */
-package com.centimia.orm.ezqu;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
+package com.centimia.orm.ezqu.ext.asm;
 
 /**
- * A functional interface for processing query {@link ResultSet}
  * 
- * @param &lt;T&gt; the type of entity object
- * @author shai
  */
-@FunctionalInterface
-public interface IResultProcessor<T> {
-
-	public T processResult(ResultSet rs) throws SQLException;
+public enum AugmentationType {
+	NONE, SUPER_CLASS, ENTITY
 }

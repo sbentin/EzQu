@@ -24,8 +24,9 @@ import com.centimia.orm.ezqu.InheritedType;
  * Used to mark the inheritance strategy to be used for an object graph when persisting it to the underlying RDBMS.<br>
  * Set the annotation on the root class of the object graph.<br>
  * 
- * If the strategy is TABLE_PER_CLASS, all classes in the object graph must be annotated with {@link Inherited}.<br>
- * If the strategy is DISCRIMINATOR, all child classes in the object graph must be annotated with {@link Discriminator}.<br>
+ * All classes in the object graph, accept the parent, must be annotated with {@link Inherited}, even if the child class is a {@link MappedSuperclass}.<br>
+ * If the strategy is DISCRIMINATOR, all child classes in the object graph must be annotated with {@link Discriminator}. In DISCRIMINTOR type
+ * the root class may also have a {@link Discriminator} annotation if it also maps itself<br>
  * 
  * <p>
  * Using this annotation you supply more information as to the inheritance strategy your going to deploy in the underlying relational database.

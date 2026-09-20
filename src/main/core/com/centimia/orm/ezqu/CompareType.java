@@ -13,14 +13,13 @@ package com.centimia.orm.ezqu;
 /**
  * An enumeration of compare operations.
  */
-enum CompareType {
+public enum CompareType {
     EQUAL("=", true),
     BIGGER(">", true),
     BIGGER_EQUAL(">=", true),
     SMALLER("<", true),
     SMALLER_EQUAL("<=", true),
     NOT_EQUAL("<>", true),
-    BETWEEN("BETWEEN", true),
     IS_NOT_NULL("IS NOT NULL", false),
     IS_NULL("IS NULL", false),
     LIKE("LIKE", true),

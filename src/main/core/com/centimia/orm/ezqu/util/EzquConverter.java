@@ -15,8 +15,8 @@ package com.centimia.orm.ezqu.util;
 /**
  * Implement this interface to create a custom conversion from field to Db
  * 
- * @param <I> - the type used in DB
- * @param <O> - the type used in object
+ * @param &lt;I&gt; - the type used in DB
+ * @param &lt;O&gt; - the type used in object
  * @author shai
  */
 public interface EzquConverter<I, O> {

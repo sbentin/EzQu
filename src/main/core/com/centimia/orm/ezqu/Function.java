@@ -15,7 +15,7 @@ import com.centimia.orm.ezqu.util.Utils;
 
 /**
  * This class provides static methods that represents common SQL functions.
- * Use as a select method parameter, or in an inner class parameter of selct methods.<br/>
+ * Use as a select method parameter, or in an inner class parameter of select methods.<br/>
  * example:<pre>
  * db.from(p).where(p.id).biggerThan(8).select(Function.max(p.name));
  * </pre>
@@ -105,6 +105,65 @@ public class Function implements Token {
             });
     }
 
+    /**
+     * Use this so that sql statements can compile when converters are used.<br>
+     * <p>
+     * <b>Examples:</b><br>
+     * The column type is the DB is int. The corresponding field in an entity is Integer.<br>
+     * For some reason you need to match a value of String without using a converter.<br>
+     * <pre>
+     * String result = select.from(entity).primaryKey().is(1).selectFirst(Function.withType(entity.getIntField(), String.class, select));
+     * </pre>
+     * or
+     * <pre>
+     * List<SomeObjectWithString> results = select.from(entity).primaryKey().is(1).select(new SomeObjectWithString() {
+     * 		{
+     * 		  someString = Function.withType(entity.getIntField(), String.class, select);
+     * 		  ....
+     * 		}
+     * });
+     * </pre>
+     * 
+     * <b>Note that the source must naturally be convertible to target. i.e number values or toString<b>
+     * 
+     * @param &lt;T&gt;
+     * @param o - the object field
+     * @param type - the type to convert to
+     * @param db
+     * @return &lt;T&gt;
+     */
+	public static <T> T withType(Object o, Class<T> type, Db db) {
+    	return db.registerToken(Utils.newObject(type), new Function("", o) {
+    		@Override
+			public void appendSQL(SQLStatement stat, Query<?> query) {
+    			query.appendSQL(stat, x[0], x[0].getClass().isEnum(), x[0].getClass());
+    		}
+    	});
+    }
+    
+	/**
+	 * Performs the round function
+	 * 
+	 * @param &lt;X&gt;
+	 * @param x
+	 * @param decimalSpaces - the amount of decimal spaces to keep. can be null (to not round at all)
+	 * @param db
+	 * @return X
+	 */
+	@SuppressWarnings("unchecked")
+	public static <X> X round(X x, Integer decimalSpaces, Db db) {
+		final Class<X> clazz = (Class<X>) x.getClass();
+        X o = Utils.newObject(clazz);
+        return db.registerToken(o, (stat, query) -> {
+        	stat.appendSQL("ROUND").appendSQL("(");
+        	query.appendSQL(stat, x, x.getClass().isEnum(), clazz);
+        	if (null != decimalSpaces) {
+        		stat.appendSQL(", " + decimalSpaces);
+        	}
+        	stat.appendSQL(")");
+        });
+	}
+	
     public static Boolean isNotNull(Object x, Db db) {
         return db.registerToken(
             Utils.newObject(Boolean.class), new Function("", x) {
@@ -253,6 +312,48 @@ public class Function implements Token {
 	    	});
     }
 
+	public static <X> X caseWhen(Db db, String as, Class<X> returnClass, F<X> elseOption, final F<?> ... pairs) {
+    	if (pairs.length == 0)
+    		throw new EzquError("At least one when option with when/then values or paired 'when' and 'then' options must be supplied!!!");
+    	X x = Utils.newObject(returnClass);
+    	if (pairs.length == 1) {
+    		return db.registerToken(x, new CaseWhenToken() {
+
+				@Override
+				public void appendSQL(SQLStatement stat, Query<?> query) {
+					stat.appendSQL("case");
+	    			pairs[0].appendSQL(stat, query);
+	    			if (null != elseOption)
+	    				elseOption.appendSQL(stat, query);
+	    			stat.appendSQL(" end");
+	    			if (null != as)
+	    				stat.appendSQL(" as " + as);
+				}
+    		});
+    	}
+    	else {
+    		if ((pairs.length % 2) != 0) {
+    			throw new EzquError("none whenThen case functions must come in when, then pairs");
+    		}
+    		return db.registerToken(x, new CaseWhenToken() {
+				
+				@Override
+				public void appendSQL(SQLStatement stat, Query<?> query) {
+					stat.appendSQL("case");
+					for (int i = 0; i < pairs.length; i+=2) {
+		    			pairs[i].appendSQL(stat, query);
+		    			pairs[i + 1].appendSQL(stat, query);
+		    		}
+					if (null != elseOption)
+	    				elseOption.appendSQL(stat, query);
+	    			stat.appendSQL(" end");
+	    			if (null != as)
+	    				stat.appendSQL(" as " + as);
+				}
+			});
+    	}
+    }
+    
     /**
      * You can use this function when you try to get a subset of result fields into a new object which has
      * a foreign key object in it.

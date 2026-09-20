@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -56,6 +57,16 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 	String sequenceQuery = null;
 	GeneratorType genType = GeneratorType.NONE;
 	
+	/**
+	 * Retrieves the value of the field from the specified object, converting it to the appropriate
+	 * database representation when necessary. Handles special types such as {@link Types#ENUM},
+	 * {@link Types#ENUM_INT}, and {@link Types#UUID}. If the field value is {@code null}, the
+	 * method simply returns {@code null}.
+	 *
+	 * @param obj the object from which to read the field value
+	 * @return the field value, possibly converted to a database-friendly form
+	 * @throws EzquError if an error occurs while accessing the field
+	 */
 	@SuppressWarnings("rawtypes")
 	Object getValue(Object obj) {
 		try {
@@ -84,6 +95,17 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 		}
 	}
 
+	/**
+	 * Initializes the field of the given object with a new instance based on the field's type.
+	 * For enum types the first enum constant is used; for {@link Types#UUID} a random UUID is
+	 * generated; for foreign key relations a new entity instance is created; otherwise a
+	 * default instance of the field type is instantiated. The new value is set on the field
+	 * and returned.
+	 *
+	 * @param obj the object whose field should be initialized
+	 * @return Object the newly created value that was set on the field
+	 * @throws EzquError if the field cannot be set or the value cannot be instantiated
+	 */
 	Object initWithNewObject(Object obj) {
 		switch (type) {
 			case ENUM, ENUM_INT: {
@@ -133,12 +155,24 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 		}
 	}
 
+	/**
+	 * Assigns a value to the specified field of the target object. The method handles
+	 * primitive conversion, enum resolution, UUID handling, and various relationship
+	 * types (normal, many-to-one, one-to-one, one-to-many, many-to-many). When a
+	 * {@link Db} instance is provided, it may be used to fetch related entities or
+	 * to populate lazy collections.
+	 *
+	 * @param objToSet the object whose field is to be set
+	 * @param fieldValueFromDb the value retrieved from the database (may be {@code null})
+	 * @param db the {@link Db} instance used for fetching related entities; may be {@code null}
+	 * @throws EzquError if an error occurs while setting the field or resolving relations
+	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	void setValue(final Object objToSet, Object fieldValueFromDb, final Db db) {
 		try {
 			Object tmp = fieldValueFromDb;
 			switch (fieldType) {
-				case NORMAL:
+				case NORMAL:					
 					// if 'o' equals null then setting the 'enum' will cause a nullPointerException
 					if ((Types.ENUM_INT == type || Types.ENUM == type) && null != fieldValueFromDb) {
 						Class enumClass = field.getType();
@@ -163,8 +197,14 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 						// object from DB should be a String by mapping
 						field.set(objToSet, null);
 					}
-					else
+					else {
+						if (null != fieldValueFromDb) {
+							Optional<Object> converted = Utils.primitiveConverter.tryConvert(fieldValueFromDb, field.getType());
+							if (converted.isPresent() && !(converted.get() instanceof EzquError))
+								fieldValueFromDb = converted.get();
+						}
 						field.set(objToSet, fieldValueFromDb);
+					}
 					break;
 				case M2O: {
 					if (null != db) {
@@ -203,7 +243,13 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 
 						boolean found = false;
 						for (Class<?> innerType: types) {
-							fieldValueFromDb = Utils.convert(fieldValueFromDb, innerType);
+							Optional<Object> converted = Utils.fullConverter.tryConvert(fieldValueFromDb, innerType);
+							if (converted.isPresent()) {
+								Object c = converted.get();
+								if (c instanceof EzquError error)
+									throw error;
+								fieldValueFromDb = c;
+							}
 							if (null != fieldValueFromDb && !innerType.isInstance(tmp)) {
 								Object reEntrant = db.reEntrantCache.checkReEntrent(fieldValueFromDb.getClass(), tmp);
 								if (null != reEntrant) {
@@ -306,7 +352,7 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 								if (null != orderByField) {
 									Field lField = ClassUtils.findField(lDataType, relationDefinition.orderByField);
 									lField.setAccessible(true);
-									if ("DESC".equals(relationDefinition.direction))
+									if (relationDefinition.descending)
 										resultList.addAll(where.orderByDesc(lField.get(descriptor)).select());
 									else
 										resultList.addAll(where.orderBy(lField.get(descriptor)).select());
@@ -368,6 +414,15 @@ class FieldDefinition implements Comparable<FieldDefinition> {
 		}
 	}
 
+	/**
+	 * Reads a value from the given {@link ResultSet} using the provided {@link Dialect}
+	 * to convert the database column to the appropriate Java type.
+	 *
+	 * @param rs the {@link ResultSet} from which to read the value
+	 * @param dialect the {@link Dialect} responsible for type conversion
+	 * @return Object the value read from the result set
+	 * @throws SQLException if a database access error occurs
+	 */
 	Object read(ResultSet rs, Dialect dialect) throws SQLException {
 		return dialect.getValueByType(type, rs, this.columnName);
 	}

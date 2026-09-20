@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.centimia.orm.ezqu.annotation.Column;
 import com.centimia.orm.ezqu.annotation.Entity;
 import com.centimia.orm.ezqu.annotation.Event;
 import com.centimia.orm.ezqu.annotation.Immutable;
@@ -99,7 +100,7 @@ public class Db implements AutoCloseable {
 	/**
      * Insert the given object and all it's children to the DB.
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      */
     public <T> void insert(T t) {
@@ -151,7 +152,7 @@ public class Db implements AutoCloseable {
      * Ezqu assumes that the latter course of action is not the common one. However, if you do run into this you
      * must close and reopen the connection to clear the multi call cache.
      * </p>
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      * @param depth - the depth of the object tree to insert (Db.FULL_DEPTH for full depth)
      */
@@ -171,8 +172,8 @@ public class Db implements AutoCloseable {
     /**
      * Inserts the object and returns the top most Object in the hierarcy's primary key, generated or not.
      *
-     * @param <T>
-     * @param <X>
+     * @param &lt;T&gt;
+     * @param &lt;X&gt;
      * @param t
      * @return X the primary key.
      * @throws EzquError when no primary keys exists or more then one primary key exists or when the object inserted and primary key could not be retrieved
@@ -187,8 +188,8 @@ public class Db implements AutoCloseable {
     /**
      * Inserts the object and returns the top most Object in the hierarcy's primary key, generated or not.
      *
-     * @param <T>
-     * @param <X>
+     * @param &lt;T&gt;
+     * @param &lt;X&gt;
      * @param t
      * @param depth - the depth of the object tree to insert (Db.FULL_DEPTH for full depth)
      * @return X the primary key.
@@ -235,8 +236,8 @@ public class Db implements AutoCloseable {
 	 * Can also be called from the factory class.
 	 *
 	 * see com.centimia.orm.ezqu.EzquSessionFactory#getPrimaryKey(Object)
-	 * @param <T>
-	 * @param <X>
+	 * @param &lt;T&gt;
+	 * @param &lt;X&gt;
 	 * @param t
 	 * @return X
 	 */
@@ -249,7 +250,7 @@ public class Db implements AutoCloseable {
     /**
      * Insert objects in a comma delimited array of 0..n
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param depth - the depth of the object tree to insert (Db.FULL_DEPTH for full depth)
      * @param tArray
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -267,7 +268,7 @@ public class Db implements AutoCloseable {
     /**
      * Insert all objects on the list
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param list
      * @param depth - the depth of the object tree to insert (Db.FULL_DEPTH for full depth)
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -284,7 +285,7 @@ public class Db implements AutoCloseable {
     /**
      * Merge means that if the object exists it is updated (so are all his children), if not it is inserted (so are all his children)
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      */ 
     public <T> void merge(T t) {
@@ -295,7 +296,7 @@ public class Db implements AutoCloseable {
     /**
      * Merge means that if the object exists it is updated (so are all his children), if not it is inserted (so are all his children)
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      * @param depth - the depth of the object tree to merge (Db.FULL_DEPTH for full depth)
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -316,7 +317,7 @@ public class Db implements AutoCloseable {
     /**
      * merge all the given objects of the same type. They are merged in the order in which they are iterated on within the list
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param list
      * @param depth - the depth of the object tree to merge (Db.FULL_DEPTH for full depth)
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -333,7 +334,7 @@ public class Db implements AutoCloseable {
     /**
      *  merge all the given objects of the same type. They are merged in the order in which they are given.
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param depth - the depth of the object tree to merge (Db.FULL_DEPTH for full depth)
      * @param tArray
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -355,7 +356,7 @@ public class Db implements AutoCloseable {
      * 	db.from(T).where()....delete();
      * </pre>
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      */
 	public <T> void delete(T t) {
@@ -378,7 +379,7 @@ public class Db implements AutoCloseable {
      * 	db.from(T).where()....delete();
      * </pre>
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param list
      */
     public <T> void delete(List<T> list) {
@@ -433,7 +434,7 @@ public class Db implements AutoCloseable {
      * 	db.from(T).set()....update();
      * </pre>
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      */
     public <T> void update(T t) {
@@ -449,7 +450,7 @@ public class Db implements AutoCloseable {
      * 	db.from(T).set()....update();
      * </pre>
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param t
      * @param depth - the depth of the object tree to update (Db.FULL_DEPTH for full depth)
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -477,7 +478,7 @@ public class Db implements AutoCloseable {
      * 	db.from(T).set()....update();
      * </pre>
      *
-     * @param <T>
+     * @param &lt;T&gt;
      * @param list
      * @param depth - the depth of the object tree to update (Db.FULL_DEPTH for full depth)
      * @see {@link Db#insert(Object, int)} for important note about depth and re-entrent cache.
@@ -517,7 +518,7 @@ public class Db implements AutoCloseable {
      * The query will be built according to all immediate fields (not including relationships) that have value within the example object.
      *
      * @param example
-     * @return List<T>
+     * @return List&lt;T&gt;
      */
     public <T> List<T> selectByExample(T example){
     	return selectByExample(example, new BasicExampleOptions(example, this));
@@ -528,7 +529,7 @@ public class Db implements AutoCloseable {
      *
      * @param example
      * @param result
-     * @return List<Z>
+     * @return List&lt;Z&gt;
      */
     public <T, Z> List<Z> selectByExample(T example, Z result) {
     	QueryWhere<T> select = getExampleQuery(example, new BasicExampleOptions(example, this));
@@ -547,7 +548,7 @@ public class Db implements AutoCloseable {
      * @param example
      * @param result
      * @param params
-     * @return List<Z>
+     * @return List&lt;Z&gt;
      */
     public <T, Z> List<Z> selectByExample(T example, Z result, ExampleOptions params) {
     	QueryWhere<T> select = getExampleQuery(example, params);
@@ -560,12 +561,12 @@ public class Db implements AutoCloseable {
 
     /**
      * The query will be built according to the 'example' object and the options given.
-     * <b>Noet: </b> values in O2M, M2M, M2O relationships are disregarded and set as an example in the select. To select on relationships write your own selects
+     * <b>Note: </b> values in O2M, M2M, M2O relationships are disregarded and set as an example in the select. To select on relationships write your own selects
      *
      * @see ExampleOptions
      * @param example
      * @param params
-     * @return List<T>
+     * @return List&lt;T&gt;
      */
     public <T> List<T> selectByExample(T example, ExampleOptions params) {
     	QueryWhere<T> select = getExampleQuery(example, params);
@@ -679,9 +680,12 @@ public class Db implements AutoCloseable {
     
     /**
      * Represents the "from clause" of the SQL select
-     * @param <T>
+     * The alias must be a unique instance of a class
+     * and must not be an anonymous class.
+     * 
+     * @param &lt;T&gt;
      * @param alias
-     * @return QueryInterface<T>
+     * @return QueryInterface&lt;T&gt;
      */
     public <T extends Object> Query<T> from(T alias) {
     	if (this.closed)
@@ -691,7 +695,7 @@ public class Db implements AutoCloseable {
 
     /**
      * API for creating a table from a given object. If the object is annotated with entity the relation's (if exist) tables are also created
-     * @param <T>
+     * @param &lt;T&gt;
      * @param clazz
      */
     public <T> void createTable(Class<T> clazz) {
@@ -963,7 +967,7 @@ public class Db implements AutoCloseable {
      * @param clazz
      * @paran args
      *
-     * @return List<T>
+     * @return List&lt;T&gt;
      */
     public <T> List<T> executeQuery(String sql, Class<T> clazz, Object ... args) {
     	if (this.closed)
@@ -1028,7 +1032,7 @@ public class Db implements AutoCloseable {
      * 
      * @param stmnt
      * @param clazz
-     * @return List<T>
+     * @return List&lt;T&gt;
      */
     public <T> List<T> executeQuery(PreparedStatement stmnt, Class<T> clazz) {
     	if (this.closed)
@@ -1053,12 +1057,12 @@ public class Db implements AutoCloseable {
      * <b>Note: the method does not close the prepared statement once done</b>
      * </p>
      * 
-     * @param <T>
-     * @param <K>
+     * @param &lt;T&gt;
+     * @param &lt;K&gt;
      * @param stmnt
      * @param processor
      * @param clazz
-     * @return List<K>
+     * @return List&lt;K&gt;
      */
     public <T, K> List<K> executeQuery(PreparedStatement stmnt, Function<T, K> processor, Class<T> clazz) {
     	if (this.closed)
@@ -1163,9 +1167,8 @@ public class Db implements AutoCloseable {
      * </b>
      * </p>
      * 
-     * @param callableStmnt
+     * @param stmnt
      * @param clazz
-     * @param args
      * @return List&lt;T&gt;
      */
     public <T> List<T> executeCallable(CallableStatement stmnt, Class<T> clazz) {
@@ -1198,7 +1201,8 @@ public class Db implements AutoCloseable {
      * </b>
      * </p>
      * 
-     * @param callableStmnt
+     * @param stmnt
+     * @param processor
      * @param clazz
      * @return List&lt;T&gt;
      */
@@ -1250,7 +1254,7 @@ public class Db implements AutoCloseable {
 
     /**
      * Check if the {@link Entity} is part of this live session. If not attach it to this session.
-     * @param <T> - must be annotated as {@link Entity} to have any session attachment effect
+     * @param &lt;T&gt; - must be annotated as {@link Entity} to have any session attachment effect
      * @param t
      * @return &lt;T&gt; t - returns the same instance or an equal instance that was previously saved in cache
      */
@@ -1320,8 +1324,8 @@ public class Db implements AutoCloseable {
 	 * use this method for cases when your entity holds an 'Entity' relationship but you want to test conditions compared with the primary key and not
 	 * the Entity Object.
 	 *
-	 * @param <T>
-	 * @param <A>
+	 * @param &lt;T&gt;
+	 * @param &lt;A&gt;
 	 * @param o
 	 * @return GenericMask&lt;T, A&gt;
 	 */
@@ -1431,14 +1435,14 @@ public class Db implements AutoCloseable {
 								}
 								if (col instanceof List list) {
 									@SuppressWarnings("rawtypes")
-									EzquList l = new EzquList(list, this, fdef, factory.getPrimaryKey(t));
+									EzquList l = new EzquList(list, this, fdef, pk);
 									l.setDb(this);
 									l.merge();
 									fdef.field.set(t, l);
 								}
 								else if (col instanceof Set set) {
 									@SuppressWarnings("rawtypes")
-									EzquSet s = new EzquSet(set, this, fdef, factory.getPrimaryKey(t));
+									EzquSet s = new EzquSet(set, this, fdef, pk);
 									s.setDb(this);
 									s.merge();
 									fdef.field.set(t, s);
@@ -1458,11 +1462,13 @@ public class Db implements AutoCloseable {
 
     /**
      * The method returns a list of relation objects. Used for lazy loading of object relationships
-     * @param <T>
+     * Called by ASM code.
+     * 
+     * @param &lt;T&gt;
      * @param fieldName
      * @param myObject
      * @param type
-     * @return Collection<T>
+     * @return Collection&lt;T&gt;
      */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	<T> Collection<T> getRelationFromDb(String fieldName, Object myObject, Class<T> type) {
@@ -1536,7 +1542,7 @@ public class Db implements AutoCloseable {
 
     /**
      * If not defined this method defines the table and creates it if needed.
-     * @param <T>
+     * @param &lt;T&gt;
      * @param clazz
      * @return TableDefinition
      */
@@ -1560,7 +1566,7 @@ public class Db implements AutoCloseable {
 				+ targetDef.getPrimaryKeyFields().get(0).columnName;
 
 		if (null != def.relationDefinition.orderByColumn)
-			builder += " order by rt." + def.relationDefinition.orderByColumn + " " + def.relationDefinition.direction;
+			builder += " order by rt." + def.relationDefinition.orderByColumn + " " + (def.relationDefinition.descending ? "DESC" : "ASC");
 		List<T> result = new ArrayList<>();
 		
 		if (factory.isShowSQL())
@@ -1608,13 +1614,11 @@ public class Db implements AutoCloseable {
 	 */
 	void updateRelationship(FieldDefinition field, Object table, Object obj) {
 		Object pKey = factory.getPrimaryKey(table);
-		Object rPk = factory.getPrimaryKey(obj);
-		String primaryKey = (pKey instanceof String) ? "'" + pKey + "'" : pKey.toString();
-		String relationPK = (rPk instanceof String) ? "'" + rPk + "'" : rPk.toString();
+		Object rPk = factory.getPrimaryKey(obj);		
 		switch (field.fieldType) {
-			case O2M: handleO2MRelationship(field, table, obj, primaryKey, relationPK); return;
-			case M2M: handleM2Mrelationship(field, table, obj, primaryKey, relationPK); return;
-			case M2O: handleM2ORelationship(field, primaryKey, relationPK); return;
+			case O2M: handleO2MRelationship(field, table, obj, pKey, rPk); return;
+			case M2M: handleM2Mrelationship(field, table, obj, pKey, rPk); return;
+			case M2O: handleM2ORelationship(field, pKey, rPk); return;
 			case FK, NORMAL: return;
 		}
 	}
@@ -1657,15 +1661,36 @@ public class Db implements AutoCloseable {
 				for (Object o: relations)
 					tdef.getInterceptor().onUpdate(o);
 			}
-			if (null == fdef.relationDefinition.relationTableName) { // if it's cascade delete these objects where deleted already so we can skip
-				// O2M relation, we need to find the other side and update the field, only if we didn't delete it before. Two options here: 1. This is a two sided relationship, which means that the field exists,
-				// 2. One sided relationship, the field FK is only in the DB.... Either way deleting from the DB will do the job!
+			if (null == fdef.relationDefinition.relationTableName) {
+				// since this is not a "cascade delete" these objects need to reset their pointer.
+				// M2M must have a relation table so this is an O2M relation. 
+				// We need to find the other side and update the field.
+				// Two options here: 
+				// 1. This is a two sided relationship, which means that the field exists,
+				// 2. One sided relationship, the field FK is only in the DB.... 
+				// Either way, since relations does not relate to an existing list on the parent (which is being deleted anyway)
+				// resetting directly in the DB will do the job!
+				String realColumnName = fdef.relationDefinition.relationFieldName;
+				try {
+					Field field = ClassUtils.findField(fdef.relationDefinition.dataType[0], fdef.relationDefinition.relationFieldName);
+					// if we're here we have this field on the collection target.
+					// this means that the parent pointed to the child by field and not by column.
+					// lets get the annotation and find out the name of the column.
+					Column annot = field.getAnnotation(Column.class);
+					if (null != annot)
+						realColumnName = annot.name();
+					else
+						realColumnName = field.getName();
+				}
+				catch (NoSuchFieldException nsfe) {
+					// in many cases this is OK and we just continue with a column name we have
+				}
 				String builder = UPDATE
 						+ tdef.tableName
 						+ SET
-						+ fdef.relationDefinition.relationFieldName
+						+ realColumnName
 						+ "=null WHERE "
-						+ fdef.relationDefinition.relationFieldName
+						+ realColumnName
 						+ "= ?";
 				Object pKey = factory.getPrimaryKey(parent);
 				executeUpdate(false, builder, pKey);
@@ -1776,16 +1801,33 @@ public class Db implements AutoCloseable {
 	
 	private <T> List<T> getRelationFromDb(final FieldDefinition def, final Object myPrimaryKey, Class<T> type) throws NoSuchFieldException, IllegalAccessException {
 		T descriptor = Utils.newObject(type);
+		// we might be in a situation where we have another side of the relationship
+		String realColumnName = def.relationDefinition.relationFieldName;
+		try {
+			Field field = ClassUtils.findField(type, def.relationDefinition.relationFieldName);
+			// if we're here we have this field on the collection target.
+			// this means that the parent pointed to the child by field and not by column.
+			// lets get the annotation and find out the name of the column.
+			Column annot = field.getAnnotation(Column.class);
+			if (null != annot)
+				realColumnName = annot.name();
+			else
+				realColumnName = field.getName();
+		}
+		catch (NoSuchFieldException nsfe) {
+			// in many cases this is OK and we just continue with a column name we have
+		}
+		final String columnName = realColumnName;
 		List<T> result;
 		if (null == def.relationDefinition.relationTableName) {
 			QueryWhere<T> where = this.from(descriptor).where(st -> {
 				String pk = (String.class.isAssignableFrom(myPrimaryKey.getClass()) ? "'" + myPrimaryKey.toString() + "'" : myPrimaryKey.toString());
-				return st.getAs() + "." + def.relationDefinition.relationFieldName  + " = " + pk;
+				return st.getAs() + "." + columnName  + " = " + pk;
 			});
 			if (null != def.relationDefinition.orderByField) {
 				Field field = ClassUtils.findField(type, def.relationDefinition.orderByField);
 				field.setAccessible(true);
-				if ("DESC".equals(def.relationDefinition.direction))
+				if (def.relationDefinition.descending)
 					result =  where.orderByDesc(field.get(descriptor)).select();
 				else
 					result = where.orderBy(field.get(descriptor)).select();
@@ -1863,7 +1905,7 @@ public class Db implements AutoCloseable {
 		tokens.clear();
 	}
 
-	private void handleM2Mrelationship(FieldDefinition field, Object table, Object obj, String primaryKey, String relationPK) {
+	private void handleM2Mrelationship(FieldDefinition field, Object table, Object obj, Object pKey, Object rPk) {
 		// we wan't to update the other side relationship. Because we're in session we can simply get the list and set it to null
 		// when the user calls get again the list will be lazy loaded with the correct values....
 		Field targetField;
@@ -1878,24 +1920,39 @@ public class Db implements AutoCloseable {
 		}
 
 		// field has a relation table. In relation table we do a merge (i.e insert only if missing update if exists)
+		String primaryKey = (pKey instanceof String) ? "'" + pKey + "'" : pKey.toString();
+		String relationPK = (rPk instanceof String) ? "'" + rPk + "'" : rPk.toString();
 		mergeRelationTable(field, primaryKey, relationPK);
 	}
 
-	private void handleO2MRelationship(FieldDefinition field, Object table, Object obj, String primaryKey, String relationPK) {
+	private void handleO2MRelationship(FieldDefinition field, Object table, Object obj, Object pKey, Object rPk) {
 		if (null == field.relationDefinition.relationTableName) {
 			// We have a relationship without a relationTable. We might have a two sided O2M relationship, or a single sided relationship
 			try {
 				Field realtedField = ClassUtils.findField(table.getClass(), field.relationDefinition.relationFieldName);
 				realtedField.setAccessible(true);
-				// update the object for consistency
-				realtedField.set(table, obj);
+				if (realtedField.getType() == obj.getClass())
+					// update the object for consistency
+					realtedField.set(table, obj);
+				else {
+					try {
+						// we assume that other side holds the field with a primary key
+						realtedField.set(table, pKey);
+					}
+					catch (Exception any) {
+						// we try the old fashion way with sql
+						throw new NoSuchFieldException(any.getMessage());
+					}
+				}
 				realtedField.setAccessible(false);
 				update(table);
 			}
 			catch (NoSuchFieldException e) {
 				// this is not a two sided relationship, we need to update the table with the id
 				// when we reach here the object has already been merged. All we need to do is update it.
-
+				String primaryKey = (pKey instanceof String) ? "'" + pKey + "'" : pKey.toString();
+				String relationPK = (rPk instanceof String) ? "'" + rPk + "'" : rPk.toString();
+				
 				// Calling define here costs very little since this table's definition is cached.
 				// we assume that our table has a single column primary key.
 				TableDefinition<?> def = define(table.getClass());
@@ -1930,6 +1987,8 @@ public class Db implements AutoCloseable {
 		}
 
 		// field has a relation table. In relation table we do a merge (i.e insert only if missing update if exists)
+		String primaryKey = (pKey instanceof String) ? "'" + pKey + "'" : pKey.toString();
+		String relationPK = (rPk instanceof String) ? "'" + rPk + "'" : rPk.toString();
 		mergeRelationTable(field, primaryKey, relationPK);
 	}
 
@@ -1947,9 +2006,11 @@ public class Db implements AutoCloseable {
 	 * @param primaryKey - the one side key
 	 * @param relationPK - the many side key.
 	 */
-	private void handleM2ORelationship(FieldDefinition field, String primaryKey, String relationPK) {
+	private void handleM2ORelationship(FieldDefinition field, Object pKey, Object rPk) {
 		// first determine the relation table name.
 		String relationTableName = field.relationDefinition.relationTableName;
+		String primaryKey = (pKey instanceof String) ? "'" + pKey + "'" : pKey.toString();
+		String relationPK = (rPk instanceof String) ? "'" + rPk + "'" : rPk.toString();
 		if (null != relationTableName && !relationTableName.isEmpty()) {
 			mergeRelationTable(field, primaryKey, relationPK);
 		}
@@ -2000,7 +2061,7 @@ public class Db implements AutoCloseable {
      * Prepare the select object for running the query.
      * @param example
      * @param params
-     * @return QueryWhere<T>
+     * @return QueryWhere&lt;T&gt;
      */
     private <T> QueryWhere<T> getExampleQuery(T example, ExampleOptions params){
     	@SuppressWarnings("unchecked")

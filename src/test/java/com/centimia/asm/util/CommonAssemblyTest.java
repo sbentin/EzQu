@@ -14,7 +14,7 @@ class CommonAssemblyTest {
 	void testAssembleFile() {
 		File classFile = new File("/home/shai/git/ezqu-orm/EzQu/bin/test/com/centimia/asm/util/CommonAssemblyTestModel.class");
 		try {
-			if (!CommonAssembly.assembleFile(classFile)) {
+			if (CommonAssembly.assembleFile(classFile).ordinal() > 0) {
 //				fail("Assembly failed");
 			}
 		} 

@@ -21,8 +21,8 @@ import java.util.Set;
  * to compare keys. The garbage collection happens when trying to add new data,
  * or when resizing.
  *
- * @param <K> the keys
- * @param <V> the value
+ * @param &lt;K&gt; the keys
+ * @param &lt;V&gt; the value
  */
 public class WeakIdentityHashMap<K, V> implements Map<K, V> {
 

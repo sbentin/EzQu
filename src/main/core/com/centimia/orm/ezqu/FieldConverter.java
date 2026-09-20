@@ -10,18 +10,9 @@
  */
 package com.centimia.orm.ezqu;
 
-/**
- * supplies an EzquSession query result
- * 
- * @param &lt;T&gt; the object being returned from the supplier
- * @author shai
- */
-@FunctionalInterface
-public interface SessionSupplier<T> {
+import java.util.Optional;
 
-	/**
-	 * @param session - the session which runs this work
-	 * @return T
-	 */
-	T get(Db session);
+@FunctionalInterface
+public interface FieldConverter {
+	Optional<Object> tryConvert(Object value, Class<?> target);
 }
